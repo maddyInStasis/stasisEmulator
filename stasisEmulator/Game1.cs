@@ -1,0 +1,74 @@
+﻿using FontStashSharp;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using stasisEmulator.UI.Controls;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+
+namespace stasisEmulator
+{
+    public class Game1 : Game
+    {
+        private readonly GraphicsDeviceManager _graphics;
+        private SpriteBatch _spriteBatch;
+
+        private UIWindow _testRoot;
+
+        public Game1()
+        {
+            _graphics = new GraphicsDeviceManager(this);
+            Content.RootDirectory = "Content";
+            IsMouseVisible = true;
+        }
+
+        protected override void Initialize()
+        {
+            _graphics.GraphicsProfile = GraphicsProfile.HiDef;
+            _graphics.ApplyChanges();
+            _graphics.PreferredBackBufferWidth = 1920;
+            _graphics.PreferredBackBufferHeight = 1080;
+            _graphics.ApplyChanges();
+
+            Window.AllowUserResizing = true;
+
+            base.Initialize();
+        }
+
+        protected override void LoadContent()
+        {
+            _spriteBatch = new(GraphicsDevice);
+
+            FontSystem mainFontSystem = new();
+            mainFontSystem.AddFont(File.ReadAllBytes(@"Content/Fonts/SEGOEUI.ttf"));
+            AssetManager.Fonts["MainFont"] = mainFontSystem;
+            AssetManager.DefaultFont = mainFontSystem;
+
+            _testRoot = new(GraphicsDevice, [
+
+            ]);
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
+            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
+                Exit();
+
+            _testRoot.Update();
+
+            base.Update(gameTime);
+        }
+
+        protected override void Draw(GameTime gameTime)
+        {
+            GraphicsDevice.Clear(Color.White);
+
+            _spriteBatch.Begin();
+            _testRoot.Render(_spriteBatch);
+            _spriteBatch.End();
+
+            base.Draw(gameTime);
+        }
+    }
+}

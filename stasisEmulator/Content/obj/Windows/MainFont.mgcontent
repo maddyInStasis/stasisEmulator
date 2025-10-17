@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PipelineBuildEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <SourceFile>C:/Users/Jacob/source/repos/stasisEmulator/stasisEmulator/Content/MainFont.spritefont</SourceFile>
+  <SourceTime>2025-06-02T05:42:50-05:00</SourceTime>
+  <DestFile>C:/Users/Jacob/source/repos/stasisEmulator/stasisEmulator/Content/bin/Windows/MainFont.xnb</DestFile>
+  <DestTime>2025-10-10T01:05:18.1857944-05:00</DestTime>
+  <Importer>FontDescriptionImporter</Importer>
+  <ImporterTime>2025-06-02T05:31:02-05:00</ImporterTime>
+  <Processor>FontDescriptionProcessor</Processor>
+  <ProcessorTime>2025-06-02T05:31:02-05:00</ProcessorTime>
+  <Parameters>
+    <Key>PremultiplyAlpha</Key>
+    <Value>True</Value>
+  </Parameters>
+  <Parameters>
+    <Key>TextureFormat</Key>
+    <Value>Compressed</Value>
+  </Parameters>
+  <Dependencies />
+  <BuildAsset />
+  <BuildOutput />
+</PipelineBuildEvent>
