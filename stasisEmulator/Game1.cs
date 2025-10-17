@@ -3,9 +3,9 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using stasisEmulator.UI.Controls;
-using System.Collections.Generic;
-using System.Diagnostics;
+using stasisEmulator.NesConsole;
 using System.IO;
+using stasisEmulator.NesConsole.Cartridges;
 
 namespace stasisEmulator
 {
@@ -15,6 +15,8 @@ namespace stasisEmulator
         private SpriteBatch _spriteBatch;
 
         private UIWindow _testRoot;
+
+        private readonly Nes _nes = new();
 
         public Game1()
         {
@@ -32,6 +34,8 @@ namespace stasisEmulator
             _graphics.ApplyChanges();
 
             Window.AllowUserResizing = true;
+
+            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\1_Example.nes"));
 
             base.Initialize();
         }
@@ -56,6 +60,7 @@ namespace stasisEmulator
                 Exit();
 
             _testRoot.Update();
+            _nes.RunFrame();
 
             base.Update(gameTime);
         }
