@@ -9,6 +9,7 @@ namespace stasisEmulator
         public static Dictionary<string, FontSystem> Fonts = [];
 
         public static FontSystem DefaultFont;
+        public static FontSystem DefaultMonospaceFont;
 
         public static SpriteFontBase GetFont(FontSystem font, float fontSize)
         {

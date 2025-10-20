@@ -20,6 +20,7 @@ namespace stasisEmulator.NesConsole
         public Nes()
         {
             Cpu = new(this);
+            Cpu.Power();
         }
 
         public void RunFrame()

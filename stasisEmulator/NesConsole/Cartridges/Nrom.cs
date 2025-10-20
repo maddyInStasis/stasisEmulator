@@ -8,20 +8,21 @@ namespace stasisEmulator.NesConsole.Cartridges
 {
     public class Nrom(Rom rom) : Cartridge(rom)
     {
-        public override void ReadCartridgeCpu(ref byte dataBus)
+        public override void ReadCartridgeCpu(ushort address, ref byte dataBus)
         {
-            throw new NotImplementedException();
+            if (address >= 0x8000)
+                dataBus = Rom.PrgRom[(address - 0x8000) % Rom.PrgRom.Length];
         }
-        public override void WriteCartridgeCpu(byte value)
+        public override void WriteCartridgeCpu(ushort address, byte value)
         {
             throw new NotImplementedException();
         }
 
-        public override void ReadCartridgePpu(ref byte dataBus)
+        public override void ReadCartridgePpu(ushort address, ref byte dataBus)
         {
             throw new NotImplementedException();
         }
-        public override void WriteCartridgePpu(byte value)
+        public override void WriteCartridgePpu(ushort address, byte value)
         {
             throw new NotImplementedException();
         }

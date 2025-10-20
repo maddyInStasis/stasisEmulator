@@ -31,14 +31,4 @@ C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windo
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\StbImageSharp.dll
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\StbTrueTypeSharp.dll
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUI.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUIB.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUII.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUIL.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUISL.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUIZ.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUIBL.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUIBLI.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUILI.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUISB.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUISBI.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGUISLI.TTF
+C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\CONSOLA.TTF

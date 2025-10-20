@@ -6,6 +6,7 @@ using stasisEmulator.UI.Controls;
 using stasisEmulator.NesConsole;
 using System.IO;
 using stasisEmulator.NesConsole.Cartridges;
+using System.Collections.Generic;
 
 namespace stasisEmulator
 {
@@ -35,7 +36,7 @@ namespace stasisEmulator
 
             Window.AllowUserResizing = true;
 
-            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\1_Example.nes"));
+            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\5_Instructions1.nes"));
 
             base.Initialize();
         }
@@ -49,8 +50,13 @@ namespace stasisEmulator
             AssetManager.Fonts["MainFont"] = mainFontSystem;
             AssetManager.DefaultFont = mainFontSystem;
 
-            _testRoot = new(GraphicsDevice, [
+            FontSystem mainMonospaceFontSystem = new();
+            mainMonospaceFontSystem.AddFont(File.ReadAllBytes(@"Content/Fonts/CONSOLA.ttf"));
+            AssetManager.Fonts["MainMonospaceFont"] = mainMonospaceFontSystem;
+            AssetManager.DefaultMonospaceFont = mainMonospaceFontSystem;
 
+            _testRoot = new(GraphicsDevice, [
+                new UITraceLogDisplay(_nes.Cpu.TraceLogger)
             ]);
         }
 

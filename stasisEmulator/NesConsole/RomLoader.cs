@@ -22,22 +22,22 @@ namespace stasisEmulator.NesConsole
         //TODO: either don't throw, or catch later. idk what you're supposed to do tbh
         public static Rom LoadRom(string path)
         {
-            byte[] file;
+            byte[] fileBytes;
 
             try
             {
-                file = File.ReadAllBytes(path);
+                fileBytes = File.ReadAllBytes(path);
             }
             catch
             {
                 throw new FileNotFoundException(path);
             }
 
-            if (file.Length < 16)
-                throw new Exception("File too short to contain a .nes header.");
+            if (fileBytes.Length < 16)
+                throw new Exception("File too short to contain a .nes file header.");
 
             byte[] header = new byte[16];
-            Array.Copy(file, header, 16);
+            Array.Copy(fileBytes, header, 16);
 
             for (int i = 0; i < _signature.Length; i++)
             {
@@ -49,11 +49,11 @@ namespace stasisEmulator.NesConsole
 
             int prgRomSize = header[4] * KiB * 16;
             rom.PrgRom = new byte[prgRomSize];
-            Array.Copy(file, 16, rom.PrgRom, 0, prgRomSize);
+            Array.Copy(fileBytes, 16, rom.PrgRom, 0, prgRomSize);
 
             int chrRomSize = header[5] * KiB * 8;
             rom.ChrRom = new byte[chrRomSize];
-            Array.Copy(file, 16 + prgRomSize, rom.ChrRom, 0, chrRomSize);
+            Array.Copy(fileBytes, 16 + prgRomSize, rom.ChrRom, 0, chrRomSize);
 
             return rom;
         }

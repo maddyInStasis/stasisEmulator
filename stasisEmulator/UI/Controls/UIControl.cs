@@ -773,7 +773,7 @@ namespace stasisEmulator.UI.Controls
         }
 
         //TODO: Figure out if a SpriteEffect would work better here, and also see if that would help make rounded corners
-        private static Texture2D GetBlankTexture(SpriteBatch spriteBatch)
+        protected static Texture2D GetBlankTexture(SpriteBatch spriteBatch)
         {
             if (blank != null)
                 return blank;
