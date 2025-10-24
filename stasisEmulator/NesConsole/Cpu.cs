@@ -688,10 +688,14 @@ namespace stasisEmulator.NesConsole
                     {
                         case 0:
                             _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
                             PC++;
                             break;
                         case 1:
                             _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
                             PC = _addressBus;
                             _operationPhaseComplete = true;
                             break;

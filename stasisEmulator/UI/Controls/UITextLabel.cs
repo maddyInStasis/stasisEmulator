@@ -18,6 +18,7 @@ namespace stasisEmulator.UI.Controls
         private float CorrectedFontSize { get => FontSize * 1.75f; }
         public float FontSize { get; set; } = 12;
 
+        public Color BackgroundColor { get; set; } = Color.White;
         public Color TextColor { get; set; } = Color.Black;
 
         public UITextLabel() : base() { Init(); }
@@ -58,7 +59,7 @@ namespace stasisEmulator.UI.Controls
 
         protected override void RenderElement(SpriteBatch spriteBatch)
         {
-            base.RenderElement(spriteBatch);
+            DrawBoundsRect(spriteBatch, BackgroundColor);
 
             var spriteFont = AssetManager.GetFont(Font, CorrectedFontSize);
             if (spriteFont == null)

@@ -175,12 +175,6 @@ namespace stasisEmulator.UI.Controls
         /// </summary>
         public VerticalAlignment VerticalContentAlignment { get; set; } = VerticalAlignment.Top;
 
-        //TODO: reconsider having the background color property, since this base class is almost exclusively for the purpose of consistent layout
-        /// <summary>
-        /// The background color to display within this element's bounds.
-        /// </summary>
-        public Color BackgroundColor { get; set; } = Color.White;
-
         /// <summary>
         /// Determines the container for this control. When null, assume this control is the root.
         /// </summary>
@@ -206,6 +200,9 @@ namespace stasisEmulator.UI.Controls
         protected int ComputedY { get; private set; }
         protected int ComputedWidth { get; set; }
         protected int ComputedHeight { get; set; }
+
+        public Rectangle Bounds { get => new(ComputedX, ComputedY, ComputedWidth, ComputedHeight); }
+
         protected int ComputedMinimumWidth { get; set; }
         protected int ComputedMinimumHeight { get; set; }
         protected int ComputedMaximumWidth { get; set; }
@@ -266,11 +263,12 @@ namespace stasisEmulator.UI.Controls
 
         public void Update()
         {
-            UpdateUpTree();
+            PreUpdateUpTree();
             SolveLayout();
+            PostUpdateUpTree();
         }
 
-        private void UpdateUpTree()
+        private void PreUpdateUpTree()
         {
             //maybe not the best place to put this, but idk where else it fits, and if an element sets these values in UpdateElement, they shouldn't be overridden
             ComputedMaximumWidth = int.MaxValue;
@@ -278,13 +276,31 @@ namespace stasisEmulator.UI.Controls
 
             foreach (var child in _children)
             {
-                child.UpdateUpTree();
+                child.PreUpdateUpTree();
             }
 
-            UpdateElement();
+            UpdateElementPreLayout();
         }
 
-        protected virtual void UpdateElement() { }
+        private void PostUpdateUpTree()
+        {
+            foreach (var child in _children)
+            {
+                child.PostUpdateUpTree();
+            }
+
+            UpdateElementPostLayout();
+        }
+
+        /// <summary>
+        /// Overridable update method which updates from the bottom up (depth-first), before the layout pass. Is empty by default.
+        /// </summary>
+        protected virtual void UpdateElementPreLayout() { }
+
+        /// <summary>
+        /// Overridable update method which updates from the bottom up (depth-first), after the layout pass. Is empty by default.
+        /// </summary>
+        protected virtual void UpdateElementPostLayout() { }
 
         private void SolveLayout()
         {
@@ -788,6 +804,11 @@ namespace stasisEmulator.UI.Controls
             spriteBatch.Draw(GetBlankTexture(spriteBatch), rectangle, color);
         }
 
+        protected void DrawBoundsRect(SpriteBatch spriteBatch, Color color)
+        {
+            DrawRect(spriteBatch, Bounds, color);
+        }
+
         protected static void DrawTextWithAlignment(SpriteBatch spriteBatch, SpriteFontBase spriteFont, string text, Vector2 position, Color color, 
             HorizontalAlignment horizontalAlignment, VerticalAlignment verticalAlignment, int contentWidth, int contentHeight, float rotation = 0, 
             Vector2 origin = default, Vector2? scale = null, float layerDepth = 0, float characterSpacing = 0, float lineSpacing = 0, 
@@ -835,10 +856,6 @@ namespace stasisEmulator.UI.Controls
             }
         }
 
-        protected virtual void RenderElement(SpriteBatch spriteBatch)
-        {
-            Rectangle rect = new(ComputedX, ComputedY, ComputedWidth, ComputedHeight);
-            DrawRect(spriteBatch, rect, BackgroundColor);
-        }
+        protected virtual void RenderElement(SpriteBatch spriteBatch) { }
     }
 }

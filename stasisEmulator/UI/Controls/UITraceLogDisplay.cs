@@ -15,6 +15,7 @@ namespace stasisEmulator.UI.Controls
         private float CorrectedFontSize { get => FontSize * 1.75f; }
         public float FontSize { get; set; } = 12;
 
+        public Color BackgroundColor { get; set; } = Color.White;
         public int BorderSize { get; set; } = 2;
         public Color BorderColor { get; set; } = Color.LightGray;
 
@@ -49,8 +50,7 @@ namespace stasisEmulator.UI.Controls
 
             return name;
         }
-
-        //TODO: bytecode is definitely the wrong way to handle this. should probably just include a ushort operand in the disassembly
+        
         private static string GetAddrString(Disassembly disassembly)
         {
             ushort argument = disassembly.Argument;
@@ -75,7 +75,7 @@ namespace stasisEmulator.UI.Controls
         //TODO: this is, like, bad. please fix
         protected override void RenderElement(SpriteBatch spriteBatch)
         {
-            base.RenderElement(spriteBatch);
+            DrawBoundsRect(spriteBatch, BackgroundColor);
 
             var spriteFont = AssetManager.GetFont(Font, CorrectedFontSize);
             float lineHeight = MeasureStringHeightCorrected(spriteFont, "");

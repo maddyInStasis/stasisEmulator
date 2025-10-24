@@ -1,0 +1,35 @@
+﻿using Microsoft.Xna.Framework.Input;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace stasisEmulator.Input
+{
+    public static class InputManager
+    {
+        public static MouseState MouseState { get; private set; }
+        private static MouseState _prevMouseState;
+
+        public static bool MouseJustClicked { get; private set; }
+        public static bool MouseJustReleased { get; private set; }
+
+        public static bool MouseClickProcessed { get; private set; } = false;
+
+        public static void Update()
+        {
+            _prevMouseState = MouseState;
+            MouseState = Mouse.GetState();
+
+            MouseClickProcessed = false;
+            MouseJustClicked = _prevMouseState.LeftButton == ButtonState.Released && MouseState.LeftButton == ButtonState.Pressed;
+            MouseJustReleased = _prevMouseState.LeftButton == ButtonState.Pressed && MouseState.LeftButton == ButtonState.Released;
+        }
+
+        public static void ProcessClick()
+        {
+            MouseClickProcessed = true;
+        }
+    }
+}

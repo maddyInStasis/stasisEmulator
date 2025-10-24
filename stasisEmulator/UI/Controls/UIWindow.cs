@@ -34,7 +34,7 @@ namespace stasisEmulator.UI.Controls
             SizeLocked = true;
         }
 
-        protected override void UpdateElement()
+        protected override void UpdateElementPreLayout()
         {
             SetMaxSize();
         }

@@ -7,6 +7,8 @@ using stasisEmulator.NesConsole;
 using System.IO;
 using stasisEmulator.NesConsole.Cartridges;
 using System.Collections.Generic;
+using stasisEmulator.Input;
+using System;
 
 namespace stasisEmulator
 {
@@ -56,8 +58,13 @@ namespace stasisEmulator
             AssetManager.DefaultMonospaceFont = mainMonospaceFontSystem;
 
             _testRoot = new(GraphicsDevice, [
-                new UITraceLogDisplay(_nes.Cpu.TraceLogger)
-            ]);
+                
+            ])
+            {
+                FillDirection = FillDirection.TopToBottom,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
         }
 
         protected override void Update(GameTime gameTime)
@@ -65,6 +72,7 @@ namespace stasisEmulator
             if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
                 Exit();
 
+            InputManager.Update();
             _testRoot.Update();
             _nes.RunFrame();
 
