@@ -47,6 +47,7 @@ namespace stasisEmulator
         {
             _spriteBatch = new(GraphicsDevice);
 
+            //TODO: this should probably just be looking in C:/Windows/Fonts? idk how you're meant to do it tbh
             FontSystem mainFontSystem = new();
             mainFontSystem.AddFont(File.ReadAllBytes(@"Content/Fonts/SEGOEUI.ttf"));
             AssetManager.Fonts["MainFont"] = mainFontSystem;
@@ -58,12 +59,22 @@ namespace stasisEmulator
             AssetManager.DefaultMonospaceFont = mainMonospaceFontSystem;
 
             _testRoot = new(GraphicsDevice, [
-                
+                new UITraceLogDisplay(_nes.Cpu.TraceLogger)
+                {
+                    Width = UISize.Grow(),
+                    Height = UISize.Grow(),
+                    BackgroundColor = new Color(25, 25, 40),
+                    TextColor = new Color(25, 179, 184),
+                    BorderColor = new Color(64, 64, 102),
+                    ScrollBarTrackColor = new Color(25, 25, 40),
+                    ScrollBarThumbIdleColor = new Color(25, 179, 184),
+                    ScrollBarThumbHoverColor = new Color(0, 146, 150),
+                    ScrollBarThumbDragColor = new Color(0, 87, 91),
+                    ShowScrollBarButtons = false
+                }
             ])
             {
-                FillDirection = FillDirection.TopToBottom,
-                HorizontalContentAlignment = HorizontalAlignment.Center,
-                VerticalContentAlignment = VerticalAlignment.Center,
+
             };
         }
 
@@ -73,7 +84,7 @@ namespace stasisEmulator
                 Exit();
 
             InputManager.Update();
-            _testRoot.Update();
+            _testRoot.Update(gameTime);
             _nes.RunFrame();
 
             base.Update(gameTime);
@@ -83,9 +94,7 @@ namespace stasisEmulator
         {
             GraphicsDevice.Clear(Color.White);
 
-            _spriteBatch.Begin();
             _testRoot.Render(_spriteBatch);
-            _spriteBatch.End();
 
             base.Draw(gameTime);
         }

@@ -16,7 +16,7 @@ namespace stasisEmulator.UI.Controls
 
         public Color BackgroundColor { get; set; } = Color.White;
 
-        protected override void RenderElement(SpriteBatch spriteBatch)
+        protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             DrawBoundsRect(spriteBatch, BackgroundColor);
         }

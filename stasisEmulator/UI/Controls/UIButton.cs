@@ -46,7 +46,7 @@ namespace stasisEmulator.UI.Controls
         public Color PressColor { get; set; } = Color.Gray;
         public Color DisabledColor { get; set; } = Color.LightGray;
 
-        protected override void UpdateElementPreLayout()
+        protected override void UpdateElementPreLayout(GameTime gameTime)
         {
             if (!Enabled)
             {
@@ -57,7 +57,7 @@ namespace stasisEmulator.UI.Controls
             _mouseComponent.Update();
         }
 
-        protected override void RenderElement(SpriteBatch spriteBatch)
+        protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             Color drawCol = MouseDownOnButton ? PressColor : (IsButtonHovered ? HoverColor : IdleColor);
             DrawRect(spriteBatch, new(ComputedX, ComputedY, ComputedWidth, ComputedHeight), Enabled ? drawCol : DisabledColor);

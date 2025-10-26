@@ -110,7 +110,10 @@ namespace stasisEmulator.UI.Controls
         /// <summary>
         /// The preferred width of this element in the layout.
         /// </summary>
-        public UISize Width { get => _width; set 
+        public UISize Width 
+        { 
+            get => _width; 
+            set 
             {
                 if (SizeLocked)
                     return;
@@ -128,7 +131,10 @@ namespace stasisEmulator.UI.Controls
         /// <summary>
         /// The preferred height of this element in the layout.
         /// </summary>
-        public UISize Height { get => _height; set 
+        public UISize Height 
+        { 
+            get => _height; 
+            set 
             {
                 if (SizeLocked)
                     return;
@@ -159,10 +165,22 @@ namespace stasisEmulator.UI.Controls
         /// </summary>
         public int ChildMargin { get; set; }
 
+        private FillDirection _fillDirection = FillDirection.LeftToRight;
         /// <summary>
         /// The direction in which child elements fill this container element.
         /// </summary>
-        public FillDirection FillDirection { get; set; } = FillDirection.LeftToRight;
+        public FillDirection FillDirection 
+        { 
+            get => _fillDirection; 
+            set 
+            {
+                if (FillDirectionLocked)
+                    return;
+
+                _fillDirection = value;
+            } 
+        }
+        protected bool FillDirectionLocked { get; set; } = false;
         protected bool IsHorizontalFill { get => (FillDirection == FillDirection.LeftToRight) || (FillDirection == FillDirection.RightToLeft); }
 
         /// <summary>
@@ -261,14 +279,14 @@ namespace stasisEmulator.UI.Controls
             _parent?._children.Add(this);
         }
 
-        public void Update()
+        public void Update(GameTime gameTime)
         {
-            PreUpdateUpTree();
+            PreUpdateUpTree(gameTime);
             SolveLayout();
-            PostUpdateUpTree();
+            PostUpdateUpTree(gameTime);
         }
 
-        private void PreUpdateUpTree()
+        private void PreUpdateUpTree(GameTime gameTime)
         {
             //maybe not the best place to put this, but idk where else it fits, and if an element sets these values in UpdateElement, they shouldn't be overridden
             ComputedMaximumWidth = int.MaxValue;
@@ -276,31 +294,31 @@ namespace stasisEmulator.UI.Controls
 
             foreach (var child in _children)
             {
-                child.PreUpdateUpTree();
+                child.PreUpdateUpTree(gameTime);
             }
 
-            UpdateElementPreLayout();
+            UpdateElementPreLayout(gameTime);
         }
 
-        private void PostUpdateUpTree()
+        private void PostUpdateUpTree(GameTime gameTime)
         {
             foreach (var child in _children)
             {
-                child.PostUpdateUpTree();
+                child.PostUpdateUpTree(gameTime);
             }
 
-            UpdateElementPostLayout();
+            UpdateElementPostLayout(gameTime);
         }
 
         /// <summary>
         /// Overridable update method which updates from the bottom up (depth-first), before the layout pass. Is empty by default.
         /// </summary>
-        protected virtual void UpdateElementPreLayout() { }
+        protected virtual void UpdateElementPreLayout(GameTime gameTime) { }
 
         /// <summary>
         /// Overridable update method which updates from the bottom up (depth-first), after the layout pass. Is empty by default.
         /// </summary>
-        protected virtual void UpdateElementPostLayout() { }
+        protected virtual void UpdateElementPostLayout(GameTime gameTime) { }
 
         private void SolveLayout()
         {
@@ -848,14 +866,42 @@ namespace stasisEmulator.UI.Controls
 
         public void Render(SpriteBatch spriteBatch)
         {
-            RenderElement(spriteBatch);
+            RenderContents(spriteBatch);
+            spriteBatch.Begin();
+            RenderOutput(spriteBatch);
+            spriteBatch.End();
+        }
 
-            foreach(var child in _children)
+        public void RenderContents(SpriteBatch spriteBatch)
+        {
+            foreach (var child in _children)
             {
-                child.Render(spriteBatch);
+                child.RenderContents(spriteBatch);
+            }
+
+            RenderElementContents(spriteBatch);
+        }
+
+        public void RenderOutput(SpriteBatch spriteBatch)
+        {
+            RenderElementOutput(spriteBatch);
+
+            foreach (var child in _children)
+            {
+                child.RenderOutput(spriteBatch);
             }
         }
 
-        protected virtual void RenderElement(SpriteBatch spriteBatch) { }
+        /// <summary>
+        /// Used to draw an element's contents to a texture. Expects <c>SpriteBatch.Begin</c> and <c>SpriteBatch.End</c> to be called in the method.
+        /// </summary>
+        /// <param name="spriteBatch"></param>
+        protected virtual void RenderElementContents(SpriteBatch spriteBatch) { }
+
+        /// <summary>
+        /// Used to output the final content of the element to the screen. Called after <c>RenderElementContents</c>. <c>SpriteBatch.Begin</c> and <c>SpriteBatch.End</c> have already been called.
+        /// </summary>
+        /// <param name="spriteBatch"></param>
+        protected virtual void RenderElementOutput(SpriteBatch spriteBatch) { }
     }
 }

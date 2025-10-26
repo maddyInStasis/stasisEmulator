@@ -54,6 +54,12 @@ namespace stasisEmulator.UI.Controls
         }
     }
 
+    public struct SliderRange(float min, float max)
+    {
+        public float Min { get; set; } = min;
+        public float Max { get; set; } = max;
+    }
+
     public class UISlider : UIControl
     {
         private MouseComponent _mainMouseComponent;
@@ -63,22 +69,40 @@ namespace stasisEmulator.UI.Controls
         public UISlider(UIControl parent) : base(parent) { Init(); }
 
         private float _sliderValue = 0;
-        public float Value { get => _sliderValue; 
+        public float Value 
+        { 
+            get => _sliderValue; 
             set 
             { 
-                if (value != _sliderValue) 
+                float newValue = Math.Clamp(value, Range.Min, Range.Max);
+
+                if (newValue != _sliderValue) 
                     ValueChanged?.Invoke(this, EventArgs.Empty); 
 
-                _sliderValue = Math.Clamp(value, 0, 1); 
+                _sliderValue = newValue;
             } 
         }
         public event EventHandler ValueChanged;
+
+        public SliderRange _range = new(0, 1);
+        public SliderRange Range 
+        { 
+            get => _range;
+            set
+            {
+                _range = value;
+                if (_range.Min >= _range.Max)
+                    throw new Exception("Slider range minimum must be greater than maximum.");
+            }
+        }
 
         private float _thumbValueMouseOffset = 0;
 
         public bool Enabled { get; set; } = true;
 
         public SliderDirection SliderDirection { get; set; } = SliderDirection.LeftToRight;
+        private bool Horizontal { get => (SliderDirection == SliderDirection.LeftToRight || SliderDirection == SliderDirection.RightToLeft); }
+        private bool Inverted { get => (SliderDirection == SliderDirection.RightToLeft || SliderDirection == SliderDirection.BottomToTop); }
 
         public SliderSize TrackThickness { get; set; } = SliderSize.Pixels(8);
         public SliderTrackExtents TrackExtents { get; set; } = SliderTrackExtents.ThumbPadded;
@@ -100,17 +124,22 @@ namespace stasisEmulator.UI.Controls
             _thumbMouseComponent = new(this);
         }
 
+        private float GetNormalizedValue()
+        {
+            float drawValue = (Value - Range.Min) / (Range.Max - Range.Min);
+            return drawValue;
+        }
+
         private Rectangle GetThumbRect()
         {
-            bool horizontal = SliderDirection == SliderDirection.LeftToRight || SliderDirection == SliderDirection.RightToLeft;
-            bool inverted = SliderDirection == SliderDirection.RightToLeft || SliderDirection == SliderDirection.TopToBottom;
-            float drawValue = inverted ? 1 - Value : Value;
+            float drawValue = GetNormalizedValue();
+            drawValue = Inverted ? 1 - drawValue : drawValue;
 
-            int boundsAxisSize = horizontal ? ComputedWidth : ComputedHeight;
+            int boundsAxisSize = Horizontal ? ComputedWidth : ComputedHeight;
             int thumbAxisSize = ThumbSize.GetPixelSize(boundsAxisSize);
             int thumbAxisPos = (int)((boundsAxisSize - thumbAxisSize) * drawValue);
 
-            Rectangle thumbRect = horizontal ?
+            Rectangle thumbRect = Horizontal ?
                 new(ComputedX + thumbAxisPos, ComputedY, thumbAxisSize, ComputedHeight) :
                 new(ComputedX, ComputedY + thumbAxisPos, ComputedWidth, thumbAxisSize);
 
@@ -119,18 +148,16 @@ namespace stasisEmulator.UI.Controls
 
         private float GetValueFromMousePos(Rectangle trackRect)
         {
-            bool horizontal = SliderDirection == SliderDirection.LeftToRight || SliderDirection == SliderDirection.RightToLeft;
-            bool inverted = SliderDirection == SliderDirection.RightToLeft || SliderDirection == SliderDirection.TopToBottom;
-
             var mousePos = MouseComponent.GetNormalizedMousePositionInRectangle(trackRect);
-            float newValue = horizontal ? mousePos.X : mousePos.Y;
-            if (inverted)
+            float newValue = Horizontal ? mousePos.X : mousePos.Y;
+            if (Inverted)
                 newValue = 1 - newValue;
+            newValue = newValue * (Range.Max - Range.Min) + Range.Min;
 
             return newValue;
         }
 
-        protected override void UpdateElementPostLayout()
+        protected override void UpdateElementPostLayout(GameTime gameTime)
         {
             Rectangle thumbRect = GetThumbRect();
             _thumbMouseComponent.UpdateAsRectangle(thumbRect);
@@ -139,15 +166,13 @@ namespace stasisEmulator.UI.Controls
             if (!Enabled)
                 return;
 
-            bool horizontal = SliderDirection == SliderDirection.LeftToRight || SliderDirection == SliderDirection.RightToLeft;
+            int boundsAxisSize = Horizontal ? ComputedWidth : ComputedHeight;
 
-            int boundsAxisSize = horizontal ? ComputedWidth : ComputedHeight;
-
-            int thumbAxisSize = horizontal ? thumbRect.Width : thumbRect.Height;
+            int thumbAxisSize = Horizontal ? thumbRect.Width : thumbRect.Height;
             int trackAxisInset = thumbAxisSize / 2;
             int trackAxisSize = boundsAxisSize - trackAxisInset * 2;
 
-            Rectangle trackRect = horizontal ?
+            Rectangle trackRect = Horizontal ?
                 new(ComputedX + trackAxisInset, ComputedY, trackAxisSize, ComputedHeight) :
                 new(ComputedX, ComputedY + trackAxisInset, ComputedWidth, trackAxisSize);
 
@@ -171,14 +196,13 @@ namespace stasisEmulator.UI.Controls
             Value = GetValueFromMousePos(trackRect) + _thumbValueMouseOffset;
         }
 
-        protected override void RenderElement(SpriteBatch spriteBatch)
+        protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
-            bool horizontal = SliderDirection == SliderDirection.LeftToRight || SliderDirection == SliderDirection.RightToLeft;
-            bool inverted = SliderDirection == SliderDirection.RightToLeft || SliderDirection == SliderDirection.TopToBottom;
-            float drawValue = inverted ? 1 - Value : Value;
+            float drawValue = GetNormalizedValue();
+            drawValue = Inverted ? 1 - drawValue : drawValue;
 
-            int boundsAxisSize = horizontal ? ComputedWidth : ComputedHeight;
-            int boundsCrossSize = horizontal ? ComputedHeight : ComputedWidth;
+            int boundsAxisSize = Horizontal ? ComputedWidth : ComputedHeight;
+            int boundsCrossSize = Horizontal ? ComputedHeight : ComputedWidth;
 
             int thumbAxisSize = ThumbSize.GetPixelSize(boundsAxisSize);
             int trackAxisInset = TrackExtents == SliderTrackExtents.ThumbPadded ? thumbAxisSize / 2 : 0;
@@ -187,7 +211,7 @@ namespace stasisEmulator.UI.Controls
             int trackThicknessPixels = TrackThickness.GetPixelSize(boundsCrossSize);
             int trackCrossInset = (boundsCrossSize - trackThicknessPixels) / 2;
 
-            Rectangle trackRect = horizontal ? 
+            Rectangle trackRect = Horizontal ? 
                 new(ComputedX + trackAxisInset, ComputedY + trackCrossInset, trackAxisSize, trackThicknessPixels) :
                 new(ComputedX + trackCrossInset, ComputedY + trackAxisInset, trackThicknessPixels, trackAxisSize);
 
@@ -195,13 +219,13 @@ namespace stasisEmulator.UI.Controls
             int inactiveSize = trackAxisSize - activeSize;
 
             Rectangle activeRect = trackRect;
-            if (horizontal)
+            if (Horizontal)
                 activeRect.Width = activeSize;
             else
                 activeRect.Height = activeSize;
 
             Rectangle inactiveRect = trackRect;
-            if (horizontal)
+            if (Horizontal)
             {
                 inactiveRect.Width = inactiveSize;
                 inactiveRect.X = ComputedX + trackAxisInset + activeSize;
@@ -212,8 +236,8 @@ namespace stasisEmulator.UI.Controls
                 inactiveRect.Y = ComputedY + trackAxisInset + activeSize;
             }
 
-            DrawRect(spriteBatch, inverted ? inactiveRect : activeRect, Enabled ? TrackActiveColor : TrackDisabledColor);
-            DrawRect(spriteBatch, inverted ? activeRect : inactiveRect, Enabled ? TrackInactiveColor : TrackDisabledColor);
+            DrawRect(spriteBatch, Inverted ? inactiveRect : activeRect, Enabled ? TrackActiveColor : TrackDisabledColor);
+            DrawRect(spriteBatch, Inverted ? activeRect : inactiveRect, Enabled ? TrackInactiveColor : TrackDisabledColor);
 
             Color thumbColor = _thumbMouseComponent.IsElementPressed ? ThumbDragColor : (_thumbMouseComponent.IsMouseHovered ? ThumbHoverColor : ThumbIdleColor);
 

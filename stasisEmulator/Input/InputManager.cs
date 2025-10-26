@@ -14,8 +14,10 @@ namespace stasisEmulator.Input
 
         public static bool MouseJustClicked { get; private set; }
         public static bool MouseJustReleased { get; private set; }
+        
+        public static bool MouseClickProcessed { get; private set; }
 
-        public static bool MouseClickProcessed { get; private set; } = false;
+        public static int ScrollWheelDelta { get; private set; }
 
         public static void Update()
         {
@@ -25,6 +27,7 @@ namespace stasisEmulator.Input
             MouseClickProcessed = false;
             MouseJustClicked = _prevMouseState.LeftButton == ButtonState.Released && MouseState.LeftButton == ButtonState.Pressed;
             MouseJustReleased = _prevMouseState.LeftButton == ButtonState.Pressed && MouseState.LeftButton == ButtonState.Released;
+            ScrollWheelDelta = MouseState.ScrollWheelValue - _prevMouseState.ScrollWheelValue;
         }
 
         public static void ProcessClick()

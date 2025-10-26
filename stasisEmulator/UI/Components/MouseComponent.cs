@@ -14,6 +14,8 @@ namespace stasisEmulator.UI.Components
         public bool IsElementPressed { get; set; }
         public bool MouseDownOnElement { get => (IsElementPressed && IsMouseHovered); }
 
+        public int ScrollAmount { get; private set; }
+
         public bool ElementMouseJustDown { get; private set; }
         public event EventHandler OnElementMouseDown;
 
@@ -41,29 +43,7 @@ namespace stasisEmulator.UI.Components
         /// </summary>
         public void Update()
         {
-            ElementMouseJustDown = false;
-            ElementMouseJustUp = false;
-
-            IsMouseHovered = IsMouseHoveredInRectangle(_owner.Bounds);
-            NormalizedMousePosition = GetNormalizedMousePositionInRectangle(_owner.Bounds);
-
-            if (InputManager.MouseJustClicked && !InputManager.MouseClickProcessed && IsMouseHovered)
-            {
-                OnElementMouseDown?.Invoke(this, EventArgs.Empty);
-                ElementMouseJustDown = true;
-                IsElementPressed = true;
-                InputManager.ProcessClick();
-            }
-
-            if (InputManager.MouseJustReleased && IsElementPressed)
-            {
-                IsElementPressed = false;
-                if (IsMouseHovered)
-                {
-                    ElementMouseJustUp = true;
-                    OnElementMouseUp?.Invoke(this, EventArgs.Empty);
-                }
-            }
+            UpdateAsRectangle(_owner.Bounds);
         }
 
         /// <summary>
@@ -76,6 +56,12 @@ namespace stasisEmulator.UI.Components
             ElementMouseJustUp = false;
 
             IsMouseHovered = IsMouseHoveredInRectangle(rect);
+
+            if (IsMouseHovered)
+                ScrollAmount = InputManager.ScrollWheelDelta;
+            else
+                ScrollAmount = 0;
+
             NormalizedMousePosition = GetNormalizedMousePositionInRectangle(rect);
 
             if (InputManager.MouseJustClicked && !InputManager.MouseClickProcessed && IsMouseHovered)

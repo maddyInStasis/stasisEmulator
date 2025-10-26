@@ -1,4 +1,5 @@
-﻿using Microsoft.Xna.Framework.Graphics;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,7 +35,7 @@ namespace stasisEmulator.UI.Controls
             SizeLocked = true;
         }
 
-        protected override void UpdateElementPreLayout()
+        protected override void UpdateElementPreLayout(GameTime gameTime)
         {
             SetMaxSize();
         }

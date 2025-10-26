@@ -57,7 +57,7 @@ namespace stasisEmulator.UI.Controls
             ComputedMinimumHeight = ComputedHeight;
         }
 
-        protected override void RenderElement(SpriteBatch spriteBatch)
+        protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             DrawBoundsRect(spriteBatch, BackgroundColor);
 
