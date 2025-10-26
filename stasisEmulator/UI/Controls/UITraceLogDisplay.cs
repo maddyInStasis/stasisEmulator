@@ -188,6 +188,8 @@ namespace stasisEmulator.UI.Controls
             {
                 case Cpu.Instr.JMP_abs:
                     return "JMP";
+                case Cpu.Instr.JMP_ind:
+                    return "JMP";
             }
 
             string name = Enum.GetName(instruction);
@@ -204,15 +206,25 @@ namespace stasisEmulator.UI.Controls
 
             return disassembly.AddressingMode switch
             {
-                Cpu.Addr.Imm => $"#${argument:X2}",
-                Cpu.Addr.Zero => $"${argument:X2}",
-                Cpu.Addr.Abs => $"${argument:X4}",
                 Cpu.Addr.Imp => "",
                 Cpu.Addr.Acc => "",
+                Cpu.Addr.Imm => $"#${argument:X2}",
+                Cpu.Addr.Zero => $"${argument:X2}",
+                Cpu.Addr.ZeroX => $"${argument:X2},X",
+                Cpu.Addr.ZeroY => $"${argument:X2},Y",
+                Cpu.Addr.Abs => $"${argument:X4}",
+                Cpu.Addr.AbsX => $"${argument:X4},X",
+                Cpu.Addr.AbsXW => $"${argument:X4},X",
+                Cpu.Addr.AbsY => $"${argument:X4},Y",
+                Cpu.Addr.AbsYW => $"${argument:X4},Y",
+                Cpu.Addr.IndX => $"(${argument:X2},X)",
+                Cpu.Addr.IndY => $"(${argument:X2}),Y",
+                Cpu.Addr.IndYW => $"(${argument:X2}),Y",
                 Cpu.Addr.Rel => $"${argument:X4}",
                 Cpu.Addr.Other => disassembly.Instruction switch
                 {
                     Cpu.Instr.JMP_abs => $"${argument:X4}",
+                    Cpu.Instr.JMP_ind => $"(${argument:X4})",
                     Cpu.Instr.RTI => "",
                     _ => "DisplayNotImpl"
                 },

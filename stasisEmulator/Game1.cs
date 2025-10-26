@@ -38,7 +38,7 @@ namespace stasisEmulator
 
             Window.AllowUserResizing = true;
 
-            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\5_Instructions1.nes"));
+            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\6_Instructions2.nes"));
 
             base.Initialize();
         }

@@ -27,7 +27,7 @@ namespace stasisEmulator.NesConsole
             AND, ORA, EOR, BIT,
             CMP, CPX, CPY,
             BCC, BCS, BEQ, BNE, BPL, BMI, BVC, BVS,
-            JMP_abs, JSR, RTS, RTI,
+            JMP_abs, JMP_ind, JSR, RTS, RTI,
             PHA, PLA, PHP, PLP, TXS, TSX,
             CLC, SEC, CLI, SEI, CLD, SED, CLV,
             NOP
@@ -40,7 +40,16 @@ namespace stasisEmulator.NesConsole
             Acc,
             Imm,
             Zero,
+            ZeroX,
+            ZeroY,
             Abs,
+            AbsX,
+            AbsXW,
+            AbsY,
+            AbsYW,
+            IndX,
+            IndY,
+            IndYW,
             Rel,
             Other
         }
@@ -53,7 +62,7 @@ namespace stasisEmulator.NesConsole
             Instr.BMI    , Instr.AND    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.NotImpl, Instr.SEC    , Instr.AND    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.NotImpl, //30
             Instr.RTI    , Instr.EOR    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.PHA    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.JMP_abs, Instr.EOR    , Instr.LSR    , Instr.NotImpl, //40
             Instr.BVC    , Instr.EOR    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.CLI    , Instr.EOR    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, //50
-            Instr.RTS    , Instr.ADC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.PLA    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.NotImpl, Instr.ADC    , Instr.ROR    , Instr.NotImpl, //60
+            Instr.RTS    , Instr.ADC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.PLA    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.JMP_ind, Instr.ADC    , Instr.ROR    , Instr.NotImpl, //60
             Instr.BVS    , Instr.ADC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.SEI    , Instr.ADC    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, //70
             Instr.NOP    , Instr.STA    , Instr.NOP    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, Instr.DEY    , Instr.NOP    , Instr.TXA    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, //80
             Instr.BCC    , Instr.STA    , Instr.HLT    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, Instr.TYA    , Instr.STA    , Instr.TXS    , Instr.NotImpl, Instr.NotImpl, Instr.STA    , Instr.NotImpl, Instr.NotImpl, //90
@@ -64,24 +73,25 @@ namespace stasisEmulator.NesConsole
             Instr.CPX    , Instr.SBC    , Instr.NOP    , Instr.NotImpl, Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.NotImpl, Instr.INX    , Instr.SBC    , Instr.NOP    , Instr.SBC    , Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.NotImpl, //E0
             Instr.BEQ    , Instr.SBC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.NotImpl, Instr.SED    , Instr.SBC    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.NotImpl  //F0
         ];
+
         public static readonly Addr[] AddressingModes = [
             //00          01            02            03            04            05            06            07            08            09            0A            0B            0C            0D            0E            0F
-            Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //00
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //10
-            Addr.Other  , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //20
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //30
-            Addr.Other  , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //40
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //50
-            Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.NotImpl, Addr.Abs    , Addr.Abs    , Addr.Abs    , //60
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //70
-            Addr.Imm    , Addr.NotImpl, Addr.Imm    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //80
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //90
-            Addr.Imm    , Addr.NotImpl, Addr.Imm    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //A0
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //B0
-            Addr.Imm    , Addr.NotImpl, Addr.Imm    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //C0
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, //D0
-            Addr.Imm    , Addr.NotImpl, Addr.Imm    , Addr.NotImpl, Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //E0
-            Addr.Rel    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.Imp    , Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl, Addr.NotImpl  //F0
+            Addr.Imp    , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //00
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //10
+            Addr.Other  , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //20
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //30
+            Addr.Other  , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //40
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //50
+            Addr.Imp    , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //60
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //70
+            Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //80
+            Addr.Rel    , Addr.IndYW  , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroY  , Addr.ZeroY  , Addr.Imp    , Addr.AbsYW  , Addr.Imp    , Addr.AbsYW  , Addr.AbsXW  , Addr.AbsXW  , Addr.AbsYW  , Addr.AbsYW  , //90
+            Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //A0
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndY   , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroY  , Addr.ZeroY  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsY   , Addr.AbsX   , Addr.AbsX   , Addr.AbsY   , Addr.AbsY   , //B0
+            Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //C0
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //D0
+            Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //E0
+            Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW    //F0
         ];
 
         private readonly Nes _nes = nes;
@@ -279,6 +289,9 @@ namespace stasisEmulator.NesConsole
                 _operationPhase = OperationPhase.Address;
         }
 
+        private ushort _correctIndexedAddress = 0;
+        private ushort _pointer = 0;
+
         public void DoAddressing()
         {
             switch (_currentAddr)
@@ -305,6 +318,225 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             PC++;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.ZeroX:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            _logByteCodeLength = 2;
+                            _logArgument = _addressBus;
+                            PC++;
+                            break;
+                        case 1:
+                            Read(_addressBus);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.ZeroY:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            _logByteCodeLength = 2;
+                            _logArgument = _addressBus;
+                            PC++;
+                            break;
+                        case 1:
+                            Read(_addressBus);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.AbsX:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
+                            _correctIndexedAddress = (ushort)(_addressBus + X);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
+                            PC++;
+
+                            if (_addressBus == _correctIndexedAddress)
+                                _operationPhaseComplete = true;
+
+                            break;
+                        case 2:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.AbsXW:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
+                            _correctIndexedAddress = (ushort)(_addressBus + X);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
+                            PC++;
+
+                            break;
+                        case 2:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.AbsY:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
+                            _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            PC++;
+
+                            if (_addressBus == _correctIndexedAddress)
+                                _operationPhaseComplete = true;
+
+                            break;
+                        case 2:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.AbsYW:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
+                            _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            PC++;
+
+                            break;
+                        case 2:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.IndX:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _pointer = Read(PC);
+                            _logOperandA = _dataBus;
+                            _logByteCodeLength = 2;
+                            _logArgument = _pointer;
+                            PC++;
+                            break;
+                        case 1:
+                            Read(_pointer);
+                            _pointer += X;
+                            _pointer &= 0xFF;
+                            break;
+                        case 2:
+                            _addressBus = Read(_pointer);
+                            break;
+                        case 3:
+                            _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.IndY:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _pointer = Read(PC);
+                            _logOperandA = _dataBus;
+                            _logByteCodeLength = 2;
+                            _logArgument = _pointer;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus = Read(_pointer);
+                            break;
+                        case 2:
+                            _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
+                            _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+
+                            if (_addressBus == _correctIndexedAddress)
+                                _operationPhaseComplete = true;
+
+                            break;
+                        case 3:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Addr.IndYW:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            _pointer = Read(PC);
+                            _logOperandA = _dataBus;
+                            _logByteCodeLength = 2;
+                            _logArgument = _pointer;
+                            PC++;
+                            break;
+                        case 1:
+                            _addressBus = Read(_pointer);
+                            break;
+                        case 2:
+                            _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
+                            _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+
+                            break;
+                        case 3:
+                            Read(_addressBus);
+                            _addressBus = _correctIndexedAddress;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -697,6 +929,30 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             PC = _addressBus;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.JMP_ind:
+                    switch(_operationCycle)
+                    {
+                        case 0:
+                            _pointer = Read(PC);
+                            _logOperandA = _dataBus;
+                            PC++;
+                            break;
+                        case 1:
+                            _pointer |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _pointer;
+                            break;
+                        case 2:
+                            _addressBus = Read(_pointer);
+                            break;
+                        case 3:
+                            PC = (ushort)(Read((ushort)((_pointer & 0xFF00) | ((_pointer + 1) & 0x00FF))) << 8);
+                            PC |= _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
