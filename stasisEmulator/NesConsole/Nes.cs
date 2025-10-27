@@ -1,4 +1,6 @@
-﻿using stasisEmulator.NesConsole.Cartridges;
+﻿using Microsoft.Xna.Framework.Input;
+using stasisEmulator.NesConsole.Cartridges;
+using stasisEmulator.NesConsole.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,25 +12,73 @@ namespace stasisEmulator.NesConsole
 {
     public class Nes
     {
-        public readonly Cpu Cpu;
+        private enum EmulatorControl
+        {
+            Pause,
+            Modifier,
+            Reset
+        }
 
-        public Cartridge Cartridge {  get; set; }
+        public readonly Cpu Cpu;
+        public readonly Ppu Ppu;
+
+        public Cartridge Cartridge { get; set; }
+
+        public InputDevice Player1Controller { get; set; } = new StandardController();
+        public InputDevice Player2Controller { get; set; }
 
         private const int _masterClockSpeed = 236250000 / 11;
-        private const int _cyclesPerFrame = _masterClockSpeed / 12;
+        private const int _cpuCyclesPerSecond = _masterClockSpeed / 12;
+
+        public int FrameCount { get; private set; }
+        public bool Paused { get; set; }
+
+        private InputBindingContext<EmulatorControl> _emulatorControls = new(new(){
+            { EmulatorControl.Pause, new([Keys.Escape], null, null) },
+            { EmulatorControl.Modifier, new([Keys.LeftControl], null, null) },
+            { EmulatorControl.Reset, new([Keys.R], null, null) }
+        });
 
         public Nes()
         {
             Cpu = new(this);
+            Ppu = new(this);
             Cpu.Power();
+            Ppu.Power();
         }
 
         public void RunFrame()
         {
-            for (int i = 0; i < _cyclesPerFrame; i++)
+            _emulatorControls.UpdateInputStates();
+
+            if (_emulatorControls.WasBindJustPressed(EmulatorControl.Pause))
+                Paused = !Paused;
+
+            if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
+                Reset();
+
+            if (Paused)
+                return;
+
+            while (!Ppu.FrameComplete)
             {
+                if (Paused)
+                    break;
+
+                Ppu.RunCycle();
+                Ppu.RunCycle();
+                Ppu.RunCycle();
                 Cpu.RunCycle();
             }
+
+            Ppu.FrameComplete = false;
+            FrameCount++;
+        }
+
+        public void Reset()
+        {
+            Cpu.Reset();
+            Ppu.Reset();
         }
     }
 }

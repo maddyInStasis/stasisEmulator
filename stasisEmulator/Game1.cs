@@ -38,7 +38,9 @@ namespace stasisEmulator
 
             Window.AllowUserResizing = true;
 
-            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\6_Instructions2.nes"));
+            //_nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\TestRoms\__PatreonRoms\7_Graphics.nes"));
+            //_nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Documents\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes"));
+            _nes.Cartridge = new Nrom(RomLoader.LoadRom(@"C:\Users\Jacob\Downloads\AccuracyCoin.nes"));
 
             base.Initialize();
         }
@@ -67,10 +69,16 @@ namespace stasisEmulator
                     TextColor = new Color(25, 179, 184),
                     BorderColor = new Color(64, 64, 102),
                     ScrollBarTrackColor = new Color(25, 25, 40),
+                    ScrollBarTrackDisabledColor = new Color(25, 25, 40),
                     ScrollBarThumbIdleColor = new Color(25, 179, 184),
                     ScrollBarThumbHoverColor = new Color(0, 146, 150),
                     ScrollBarThumbDragColor = new Color(0, 87, 91),
                     ShowScrollBarButtons = false
+                },
+                new UINametableDisplay(_nes)
+                {
+                    Width = UISize.Grow(),
+                    Height = UISize.Grow()
                 }
             ])
             {
@@ -80,9 +88,6 @@ namespace stasisEmulator
 
         protected override void Update(GameTime gameTime)
         {
-            if (GamePad.GetState(PlayerIndex.One).Buttons.Back == ButtonState.Pressed || Keyboard.GetState().IsKeyDown(Keys.Escape))
-                Exit();
-
             InputManager.Update();
             _testRoot.Update(gameTime);
             _nes.RunFrame();

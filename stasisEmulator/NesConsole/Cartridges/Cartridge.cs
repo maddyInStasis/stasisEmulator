@@ -16,7 +16,6 @@ namespace stasisEmulator.NesConsole.Cartridges
         public abstract void ReadCartridgePpu(ushort address, ref byte dataBus);
         public abstract void WriteCartridgePpu(ushort address, byte value);
 
-        //TODO: i don't remember if this is accurate, i just know the cartridge maps the nametables sorta like this?
-        public abstract (bool usePpuVram, bool useFirstNametable) MapNameTable(ushort address);
+        public abstract (bool usePpuVram, bool useFirstPpuVramNametable) MapNameTable(byte nametable);
     }
 }

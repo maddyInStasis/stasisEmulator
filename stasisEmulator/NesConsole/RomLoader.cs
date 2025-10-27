@@ -7,10 +7,17 @@ using System.Threading.Tasks;
 
 namespace stasisEmulator.NesConsole
 {
+    public struct RomMetadata
+    {
+        public bool VerticalMirror;
+        public bool AltNametable;
+    }
+
     public struct Rom
     {
         public byte[] PrgRom;
         public byte[] ChrRom;
+        public RomMetadata Metadata;
     }
 
     public static class RomLoader
@@ -54,6 +61,14 @@ namespace stasisEmulator.NesConsole
             int chrRomSize = header[5] * KiB * 8;
             rom.ChrRom = new byte[chrRomSize];
             Array.Copy(fileBytes, 16 + prgRomSize, rom.ChrRom, 0, chrRomSize);
+
+            RomMetadata metadata = new();
+
+            byte flags6 = header[6];
+            metadata.VerticalMirror = (flags6 & 1) != 0;
+            metadata.AltNametable = (flags6 & 8) != 0;
+
+            rom.Metadata = metadata;
 
             return rom;
         }

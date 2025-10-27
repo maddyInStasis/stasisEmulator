@@ -2,6 +2,7 @@
 using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -80,9 +81,9 @@ namespace stasisEmulator.NesConsole
             Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //10
             Addr.Other  , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //20
             Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //30
-            Addr.Other  , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //40
+            Addr.Other  , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //40
             Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //50
-            Addr.Imp    , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //60
+            Addr.Imp    , Addr.IndX   , Addr.Imp    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Acc    , Addr.Imm    , Addr.Other  , Addr.Abs    , Addr.Abs    , Addr.Abs    , //60
             Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW  , //70
             Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //80
             Addr.Rel    , Addr.IndYW  , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroY  , Addr.ZeroY  , Addr.Imp    , Addr.AbsYW  , Addr.Imp    , Addr.AbsYW  , Addr.AbsXW  , Addr.AbsXW  , Addr.AbsYW  , Addr.AbsYW  , //90
@@ -93,8 +94,6 @@ namespace stasisEmulator.NesConsole
             Addr.Imm    , Addr.IndX   , Addr.Imm    , Addr.IndX   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Zero   , Addr.Imp    , Addr.Imm    , Addr.Imp    , Addr.Imm    , Addr.Abs    , Addr.Abs    , Addr.Abs    , Addr.Abs    , //E0
             Addr.Rel    , Addr.IndY   , Addr.Imp    , Addr.IndYW  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.ZeroX  , Addr.Imp    , Addr.AbsY   , Addr.Imp    , Addr.AbsYW  , Addr.AbsX   , Addr.AbsX   , Addr.AbsXW  , Addr.AbsXW    //F0
         ];
-
-        private readonly Nes _nes = nes;
 
         public byte A { get; private set; }
         public byte X { get; private set; }
@@ -135,9 +134,15 @@ namespace stasisEmulator.NesConsole
             }
         }
 
+        public bool DoNmi { get; set; }
+
         public readonly byte[] Ram = new byte[0x800];
 
+        public ulong CycleCount { get; private set; }
+        public ulong InstructionCount { get; private set; }
         public readonly TraceLogger TraceLogger = new(30000);
+
+        private readonly Nes _nes = nes;
 
         private ushort _logPc = 0;
 
@@ -152,6 +157,9 @@ namespace stasisEmulator.NesConsole
         private byte _logP = 0;
 
         private ushort _logArgument = 0;
+        private ushort _logEffectiveAddress = 0;
+
+        private ulong _logCycleCount;
 
         private bool _ignoreCurrentLog = false;
 
@@ -168,6 +176,7 @@ namespace stasisEmulator.NesConsole
         private Addr _currentAddr;
 
         private bool _halt = false;
+        private bool _break = false;
 
         private bool _doReset = false;
 
@@ -196,24 +205,46 @@ namespace stasisEmulator.NesConsole
             _operationCycle = 0;
             _operationPhaseComplete = false;
 
+            CycleCount = 1;
+            InstructionCount = 0;
+
             _doReset = true;
         }
 
+        //TODO: remove temp controller stuff
         private byte Read(ushort address)
         {
             if (address < 0x2000)
                 _dataBus = Ram[address & (0x800 - 1)];
             else if (address >= 0x4020)
                 _nes.Cartridge?.ReadCartridgeCpu(address, ref _dataBus);
+            else if (address < 0x4000)
+                _nes.Ppu.ReadRegister(address, ref _dataBus);
+            else if (address == 0x4016)
+                _nes.Player1Controller?.RegisterRead(ref _dataBus);
+            else if (address == 0x4017)
+                _nes.Player2Controller?.RegisterRead(ref _dataBus);
 
             return _dataBus;
         }
         private void Write(ushort address, byte value)
         {
+            _dataBus = value;
+
+            //if (address == 0x600)
+            //    _break = true;
+
             if (address < 0x2000)
                 Ram[address & (0x800 - 1)] = value;
             else if (address >= 0x4020)
                 _nes.Cartridge?.WriteCartridgeCpu(address, value);
+            else if (address < 0x4000)
+                _nes.Ppu.WriteRegister(address, value);
+            else if (address == 0x4016)
+            {
+                _nes.Player1Controller?.RegisterWrite(value);
+                _nes.Player2Controller?.RegisterWrite(value);
+            }
         }
 
         private void Push(byte value)
@@ -239,6 +270,8 @@ namespace stasisEmulator.NesConsole
                     DoInstructionCycle();
                     break;
             }
+
+            CycleCount++;
         }
 
         public void Fetch()
@@ -257,18 +290,27 @@ namespace stasisEmulator.NesConsole
             _logOperandB = 0;
 
             _logArgument = 0;
+            _logEffectiveAddress = 0;
+
+            _logCycleCount = CycleCount;
 
             _ignoreCurrentLog = false;
 
             _opcode = Read(PC);
-            PC++;
+
+            if (_doReset)
+                DoNmi = false;
 
             //interrupts execute opcode 0, the behavior of which depends on the interrupt.
             //reset supposedly dummy reads from the stack 3 times and decrements each time, explaining the SP -= 3 on every reset
-            if (_doReset)
+            if (_doReset || DoNmi)
             {
                 _ignoreCurrentLog = true;
                 _opcode = 0;
+            }
+            else
+            {
+                PC++;
             }
 
             _currentInstr = Instructions[_opcode];
@@ -335,6 +377,7 @@ namespace stasisEmulator.NesConsole
                         case 1:
                             Read(_addressBus);
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -352,6 +395,7 @@ namespace stasisEmulator.NesConsole
                         case 1:
                             Read(_addressBus);
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -371,6 +415,7 @@ namespace stasisEmulator.NesConsole
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + X);
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
+                            _logEffectiveAddress = _addressBus;
                             PC++;
 
                             if (_addressBus == _correctIndexedAddress)
@@ -380,6 +425,7 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -405,6 +451,7 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -424,6 +471,7 @@ namespace stasisEmulator.NesConsole
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            _logEffectiveAddress = _addressBus;
                             PC++;
 
                             if (_addressBus == _correctIndexedAddress)
@@ -433,6 +481,7 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -458,6 +507,7 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -482,6 +532,7 @@ namespace stasisEmulator.NesConsole
                             break;
                         case 3:
                             _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -503,6 +554,7 @@ namespace stasisEmulator.NesConsole
                             _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
+                            _logEffectiveAddress = _addressBus;
 
                             if (_addressBus == _correctIndexedAddress)
                                 _operationPhaseComplete = true;
@@ -511,6 +563,7 @@ namespace stasisEmulator.NesConsole
                         case 3:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -537,6 +590,7 @@ namespace stasisEmulator.NesConsole
                         case 3:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -565,48 +619,51 @@ namespace stasisEmulator.NesConsole
                             Read(PC);
                             break;
                         case 1:
-                            if (!_doReset)
+                            if (_doReset)
+                            {
+                                Read((ushort)(0x100 + S));
+                                S--;
+                            }
+                            else
                             {
                                 Push((byte)(PC >> 8));
                             }
-                            else
+                            break;
+                        case 2:
+                            if (_doReset)
                             {
                                 Read((ushort)(0x100 + S));
                                 S--;
                             }
-                            break;
-                        case 2:
-                            if (!_doReset)
+                            else
                             {
                                 Push((byte)PC);
                             }
-                            else
-                            {
-                                Read((ushort)(0x100 + S));
-                                S--;
-                            }
                             break;
                         case 3:
-                            if (!_doReset)
-                            {
-                                Push((byte)(P | Break));
-                            }
-                            else
+                            if (_doReset)
                             {
                                 Read((ushort)(0x100 + S));
                                 S--;
+                            }
+                            else
+                            {
+                                if (DoNmi)
+                                    Push(P);
+                                else
+                                    Push((byte)(P | Break));
                             }
                             break;
                         case 4:
-                            ushort fetchAddr = (ushort)(_doReset ? 0xFFFC : 0xFFFE);
+                            ushort fetchAddr = (ushort)(_doReset ? 0xFFFC : (DoNmi ? 0xFFFA : 0xFFFE));
                             PC = Read(fetchAddr);
                             break;
                         case 5:
-                            fetchAddr = (ushort)(_doReset ? 0xFFFD : 0xFFFF);
+                            fetchAddr = (ushort)(_doReset ? 0xFFFD : (DoNmi ? 0xFFFB : 0xFFFF));
                             PC |= (ushort)(Read(fetchAddr) << 8);
 
-                            if (_doReset)
-                                _doReset = false;
+                            _doReset = false;
+                            DoNmi = false;
 
                             _operationPhaseComplete = true;
                             break;
@@ -953,6 +1010,7 @@ namespace stasisEmulator.NesConsole
                         case 3:
                             PC = (ushort)(Read((ushort)((_pointer & 0xFF00) | ((_pointer + 1) & 0x00FF))) << 8);
                             PC |= _addressBus;
+                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -962,6 +1020,7 @@ namespace stasisEmulator.NesConsole
                     {
                         case 0:
                             _addressBus = Read(PC);
+                            _logOperandA = _dataBus;
                             PC++;
                             break;
                         case 1:
@@ -974,6 +1033,9 @@ namespace stasisEmulator.NesConsole
                             break;
                         case 4:
                             _addressBus |= (ushort)(Read(PC) << 8);
+                            _logOperandB = _dataBus;
+                            _logByteCodeLength = 3;
+                            _logArgument = _addressBus;
                             PC = _addressBus;
                             _operationPhaseComplete = true;
                             break;
@@ -1125,7 +1187,6 @@ namespace stasisEmulator.NesConsole
                     _operationPhaseComplete = true;
                     break;
                 default:
-                    _halt = true;
                     _operationPhaseComplete = true;
                     break;
             }
@@ -1155,9 +1216,17 @@ namespace stasisEmulator.NesConsole
                             3 => new(_opcode, _logOperandA, _logOperandB),
                             _ => throw new Exception($"{nameof(_logByteCodeLength)} was not a value from 1 to 3.")
                         },
-                        new(_currentInstr, _currentAddr, _logArgument),
-                        new(_logA, _logX, _logY, _logS, _logP)
+                        new(_currentInstr, _currentAddr, _logArgument, _logEffectiveAddress),
+                        new(_logA, _logX, _logY, _logS, _logP),
+                        _logCycleCount
                     ));
+                    InstructionCount++;
+                }
+
+                if (_break)
+                {
+                    _nes.Paused = true;
+                    _break = false;
                 }
             }
         }

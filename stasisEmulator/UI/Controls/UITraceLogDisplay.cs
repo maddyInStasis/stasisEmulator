@@ -14,7 +14,8 @@ namespace stasisEmulator.UI.Controls
         ProgramCounter,
         ByteCode,
         Disassembly,
-        Registers
+        Registers,
+        CycleCount
     }
 
     internal class UITraceLogDisplay : UIControl
@@ -23,11 +24,11 @@ namespace stasisEmulator.UI.Controls
 
         public FontSystem Font { get; set; } = AssetManager.DefaultMonospaceFont;
         private float CorrectedFontSize { get => FontSize * 1.75f; }
-        public float FontSize { get; set; } = 12;
+        public float FontSize { get; set; } = 10;
         public Color TextColor { get; set; } = Color.Black;
 
         public Color BackgroundColor { get; set; } = Color.White;
-        public int BorderSize { get; set; } = 2;
+        public int BorderSize { get; set; } = 1;
         public Color BorderColor { get; set; } = Color.LightGray;
 
         public Padding TextPadding = new(4, 2);
@@ -38,22 +39,12 @@ namespace stasisEmulator.UI.Controls
         public Color ScrollBarThumbDragColor { get => _scrollBar.ThumbDragColor; set => _scrollBar.ThumbDragColor = value; }
 
         public Color ScrollBarTrackColor { get => _scrollBar.TrackColor; set => _scrollBar.TrackColor = value; }
+        public Color ScrollBarTrackDisabledColor { get => _scrollBar.TrackDisabledColor; set => _scrollBar.TrackDisabledColor = value; }
 
-        public Color ScrollBarButtonIdleColor
-        {
-            get => _scrollBar.ButtonIdleColor;
-            set => _scrollBar.ButtonIdleColor = value;
-        }
-        public Color ScrollBarButtonHoverColor
-        {
-            get => _scrollBar.ButtonHoverColor;
-            set => _scrollBar.ButtonHoverColor = value;
-        }
-        public Color ScrollBarButtonPressColor
-        {
-            get => _scrollBar.ButtonPressColor;
-            set => _scrollBar.ButtonPressColor = value;
-        }
+        public Color ScrollBarButtonIdleColor { get => _scrollBar.ButtonIdleColor; set => _scrollBar.ButtonIdleColor = value; }
+        public Color ScrollBarButtonHoverColor { get => _scrollBar.ButtonHoverColor; set => _scrollBar.ButtonHoverColor = value; }
+        public Color ScrollBarButtonPressColor { get => _scrollBar.ButtonPressColor; set => _scrollBar.ButtonPressColor = value; }
+        public Color ScrollBarButtonDisabledColor { get => _scrollBar.ButtonDisabledColor; set => _scrollBar.ButtonDisabledColor = value; }
 
         public bool ShowScrollBarButtons { get => _scrollBar.ShowButtons; set => _scrollBar.ShowButtons = value; }
 
@@ -67,15 +58,17 @@ namespace stasisEmulator.UI.Controls
         private static readonly Dictionary<TraceLoggerColumnType, int> _columnCharacterWidth = new(){
             { TraceLoggerColumnType.ProgramCounter, GetColumnString(0).Length },
             { TraceLoggerColumnType.ByteCode, GetColumnString(new ByteCode(0, 0, 0)).Length },
-            { TraceLoggerColumnType.Disassembly, GetColumnString(new Disassembly(Cpu.Instr.LDA, Cpu.Addr.Imm, 0)).Length },
-            { TraceLoggerColumnType.Registers, GetColumnString(new Registers()).Length }
+            { TraceLoggerColumnType.Disassembly, GetColumnString(new Disassembly(Cpu.Instr.LDA, Cpu.Addr.Imm, 0, 0)).Length },
+            { TraceLoggerColumnType.Registers, GetColumnString(new Registers()).Length },
+            { TraceLoggerColumnType.CycleCount, GetColumnString((ulong)0).Length }
         };
 
         private static readonly List<TraceLoggerColumnType> _traceLogColumns = [
             TraceLoggerColumnType.ProgramCounter,
             TraceLoggerColumnType.ByteCode,
             TraceLoggerColumnType.Disassembly,
-            TraceLoggerColumnType.Registers
+            TraceLoggerColumnType.Registers,
+            TraceLoggerColumnType.CycleCount
         ];
 
         public UITraceLogDisplay(TraceLogger traceLogger) : base() { Init(traceLogger); }
@@ -128,6 +121,11 @@ namespace stasisEmulator.UI.Controls
             return regString;
         }
 
+        private static string GetColumnString(ulong cycleCount)
+        {
+            return $"Cycle: {cycleCount}".PadRight(7 + 15);
+        }
+
         private static string GetColumnString(TraceLoggerRow traceLoggerRow, TraceLoggerColumnType type)
         {
             return type switch
@@ -136,6 +134,7 @@ namespace stasisEmulator.UI.Controls
                 TraceLoggerColumnType.ByteCode => GetColumnString(traceLoggerRow.ByteCode),
                 TraceLoggerColumnType.Disassembly => GetColumnString(traceLoggerRow.Disassembly),
                 TraceLoggerColumnType.Registers => GetColumnString(traceLoggerRow.Registers),
+                TraceLoggerColumnType.CycleCount => GetColumnString(traceLoggerRow.CycleCount),
                 _ => throw new Exception($"Unrecognized trace logger column type: {type}")
             };
         }
@@ -174,6 +173,7 @@ namespace stasisEmulator.UI.Controls
         protected override void CalculateContentWidth()
         {
             ComputedWidth = GetTotalWidth();
+            ComputedMinimumWidth = ComputedWidth;
         }
 
         protected override void CalculateContentHeight()
@@ -194,37 +194,77 @@ namespace stasisEmulator.UI.Controls
 
             string name = Enum.GetName(instruction);
 
-            if (name.Length > 3)
-                throw new Exception($"hey girly you forgor a special case :3 ({name})");
+            //if (name.Length > 3)
+            //    throw new Exception($"hey girly you forgor a special case :3 ({name})");
 
             return name;
         }
-        
+
+        private static readonly Dictionary<ushort, string> _ppuRegisterNames = new(){
+            {Ppu.PPUCTRL, "PPUCTRL"},
+            {Ppu.PPUMASK, "PPUMASK"},
+            {Ppu.PPUSTATUS, "PPUSTATUS"},
+            {Ppu.OAMADDR, "OAMADDR"},
+            {Ppu.OAMDATA, "OAMDATA"},
+            {Ppu.PPUSCROLL, "PPUSCROLL"},
+            {Ppu.PPUADDR, "PPUADDR"},
+            {Ppu.PPUDATA, "PPUDATA"}
+        };
+
+        private static string GetRegisterString(ushort address)
+        {
+            string output = $"${address:X4}";
+
+            if (address >= 0x2000 && address < 0x4000)
+            {
+                output = _ppuRegisterNames[(ushort)(address & Ppu.RegMask)];
+                if (address != (address & Ppu.RegMask))
+                {
+                    output += $" (Mirror ${address:X4})";
+                }
+            }
+
+            if (address >= 0x4000 && address < 0x4017)
+            {
+                //TODO: clean up when more registers implemented
+                if (address == 0x4014)
+                    output = "OAMDMA";
+                if (address == 0x4016)
+                    output = "ControllerPort1";
+                if (address == 0x4017)
+                    output = "ControllerPort2";
+            }
+
+            return output;
+        }
+
         private static string GetAddrString(Disassembly disassembly)
         {
             ushort argument = disassembly.Argument;
+            ushort effectiveAddr = disassembly.EffectiveAddress;
 
             return disassembly.AddressingMode switch
             {
                 Cpu.Addr.Imp => "",
-                Cpu.Addr.Acc => "",
+                Cpu.Addr.Acc => "A",
                 Cpu.Addr.Imm => $"#${argument:X2}",
                 Cpu.Addr.Zero => $"${argument:X2}",
-                Cpu.Addr.ZeroX => $"${argument:X2},X",
-                Cpu.Addr.ZeroY => $"${argument:X2},Y",
-                Cpu.Addr.Abs => $"${argument:X4}",
-                Cpu.Addr.AbsX => $"${argument:X4},X",
-                Cpu.Addr.AbsXW => $"${argument:X4},X",
-                Cpu.Addr.AbsY => $"${argument:X4},Y",
-                Cpu.Addr.AbsYW => $"${argument:X4},Y",
-                Cpu.Addr.IndX => $"(${argument:X2},X)",
-                Cpu.Addr.IndY => $"(${argument:X2}),Y",
-                Cpu.Addr.IndYW => $"(${argument:X2}),Y",
+                Cpu.Addr.ZeroX => $"${argument:X2},X [${effectiveAddr:X2}]",
+                Cpu.Addr.ZeroY => $"${argument:X2},Y [${effectiveAddr:X2}]",
+                Cpu.Addr.Abs => $"{GetRegisterString(argument)}",
+                Cpu.Addr.AbsX => $"${argument:X4},X [${GetRegisterString(argument)}]",
+                Cpu.Addr.AbsXW => $"${argument:X4},X [${GetRegisterString(argument)}]",
+                Cpu.Addr.AbsY => $"${argument:X4},Y [${GetRegisterString(argument)}]",
+                Cpu.Addr.AbsYW => $"${argument:X4},Y [${GetRegisterString(argument)}]",
+                Cpu.Addr.IndX => $"(${argument:X2},X) [${GetRegisterString(argument)}]",
+                Cpu.Addr.IndY => $"(${argument:X2}),Y [${GetRegisterString(argument)}]",
+                Cpu.Addr.IndYW => $"(${argument:X2}),Y [${GetRegisterString(argument)}]",
                 Cpu.Addr.Rel => $"${argument:X4}",
                 Cpu.Addr.Other => disassembly.Instruction switch
                 {
-                    Cpu.Instr.JMP_abs => $"${argument:X4}",
-                    Cpu.Instr.JMP_ind => $"(${argument:X4})",
+                    Cpu.Instr.JMP_abs => $"${GetRegisterString(argument)}",
+                    Cpu.Instr.JMP_ind => $"(${argument:X4}) [${GetRegisterString(argument)}]",
+                    Cpu.Instr.JSR => $"${GetRegisterString(argument)}",
                     Cpu.Instr.RTI => "",
                     _ => "DisplayNotImpl"
                 },
@@ -247,7 +287,7 @@ namespace stasisEmulator.UI.Controls
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
             GraphicsDevice graphicsDevice = spriteBatch.GraphicsDevice;
-            if (_renderTarget == null || _renderTarget.Width != ComputedWidth || _renderTarget.Height != ComputedHeight)
+            if (_renderTarget == null || _renderTarget.Bounds.Size != Bounds.Size)
                 _renderTarget = new(graphicsDevice, ComputedWidth, ComputedHeight);
 
             graphicsDevice.SetRenderTarget(_renderTarget);
@@ -269,7 +309,7 @@ namespace stasisEmulator.UI.Controls
                 foreach (var logType in _traceLogColumns)
                 {
                     string drawString = GetColumnString(traceLogRow, logType);
-                    spriteBatch.DrawString(spriteFont, drawString, new Vector2(offsetHori + BorderSize + TextPadding.Left, offsetVert + BorderSize + TextPadding.Top), TextColor);
+                    spriteBatch.DrawString(spriteFont, drawString, new Vector2(offsetHori + BorderSize + TextPadding.Left, offsetVert + TextPadding.Top), TextColor);
                     offsetHori += (int)GetWidthOfChars(_columnCharacterWidth[logType]) + AdvanceWidth;
                 }
 

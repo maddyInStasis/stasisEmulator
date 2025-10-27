@@ -90,6 +90,7 @@ namespace stasisEmulator.UI.Controls
                 _slider.TrackInactiveColor = value;
             }
         }
+        public Color TrackDisabledColor { get => _slider.TrackDisabledColor; set => _slider.TrackDisabledColor = value; }
 
         public Color ThumbIdleColor { get => _slider.ThumbIdleColor; set => _slider.ThumbIdleColor = value; }
         public Color ThumbHoverColor { get => _slider.ThumbHoverColor; set => _slider.ThumbHoverColor = value; }
@@ -120,6 +121,15 @@ namespace stasisEmulator.UI.Controls
             {
                 _buttonUp.PressColor = value;
                 _buttonDown.PressColor = value;
+            }
+        }
+        public Color ButtonDisabledColor
+        {
+            get => _buttonUp.DisabledColor;
+            set
+            {
+                _buttonUp.DisabledColor = value;
+                _buttonDown.DisabledColor = value;
             }
         }
 
@@ -219,12 +229,14 @@ namespace stasisEmulator.UI.Controls
             if (ContentTotalSize <= ContentVisibleSize)
             {
                 _slider.Enabled = false;
+                _slider.ThumbSize = SliderSize.Pixels(0);
+                _slider.Range = new SliderRange(0, 0);
             }
             else
             {
                 _slider.Enabled = true;
                 _slider.ThumbSize = SliderSize.Relative((float)ContentVisibleSize / ContentTotalSize, min: Thickness / 2);
-                _slider.Range = new SliderRange(0, ContentTotalSize - ContentVisibleSize);
+                _slider.Range = new SliderRange(0, Math.Max(ContentTotalSize - ContentVisibleSize, 0));
             }
         }
         

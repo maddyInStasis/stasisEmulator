@@ -806,6 +806,33 @@ namespace stasisEmulator.UI.Controls
             }
         }
 
+        protected static Rectangle FitRectangle(Rectangle source, Rectangle container)
+        {
+            float sourceAspect = (float)source.Width / source.Height;
+            float containerAspect = (float)container.Width / container.Height;
+
+            Rectangle output = new();
+
+            if (containerAspect > sourceAspect)
+            {
+                float scaleAmount = (float)container.Height / source.Height;
+                output.Height = container.Height;
+                output.Width = (int)(source.Width * scaleAmount);
+                output.Y = container.Y;
+                output.X = container.X + (container.Width - output.Width) / 2;
+            }
+            else
+            {
+                float scaleAmount = (float)container.Width / source.Width;
+                output.Width = container.Width;
+                output.Height = (int)(source.Height * scaleAmount);
+                output.X = container.X;
+                output.Y = container.Y + (container.Height - output.Height) / 2;
+            }
+
+            return output;
+        }
+
         //TODO: Figure out if a SpriteEffect would work better here, and also see if that would help make rounded corners
         protected static Texture2D GetBlankTexture(SpriteBatch spriteBatch)
         {

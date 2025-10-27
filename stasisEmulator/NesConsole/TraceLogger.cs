@@ -80,11 +80,12 @@ namespace stasisEmulator.NesConsole
         }
     }
 
-    public readonly struct Disassembly(Cpu.Instr instruction, Cpu.Addr addressingMode, ushort argument)
+    public readonly struct Disassembly(Cpu.Instr instruction, Cpu.Addr addressingMode, ushort argument, ushort indirectAddress)
     {
         public readonly Cpu.Instr Instruction = instruction;
         public readonly Cpu.Addr AddressingMode = addressingMode;
         public readonly ushort Argument = argument;
+        public readonly ushort EffectiveAddress = indirectAddress;
     }
 
     public readonly struct Registers(byte a, byte x, byte y, byte s, byte p)
@@ -97,12 +98,13 @@ namespace stasisEmulator.NesConsole
         public readonly byte P = p;
     }
 
-    public readonly struct TraceLoggerRow(ushort pc, ByteCode byteCode, Disassembly disassembly, Registers registers)
+    public readonly struct TraceLoggerRow(ushort pc, ByteCode byteCode, Disassembly disassembly, Registers registers, ulong cycleCount)
     {
         public readonly ushort PC = pc;
         public readonly ByteCode ByteCode = byteCode;
         public readonly Disassembly Disassembly = disassembly;
         public readonly Registers Registers = registers;
+        public readonly ulong CycleCount = cycleCount;
     }
 
     public class TraceLogger(int capacity)
@@ -111,6 +113,9 @@ namespace stasisEmulator.NesConsole
         private readonly TraceLogColumn<ByteCode> _byteCode = new(capacity);
         private readonly TraceLogColumn<Disassembly> _disassembly = new(capacity);
         private readonly TraceLogColumn<Registers> _registers = new(capacity);
+        private readonly TraceLogColumn<ulong> _cycleCount = new(capacity);
+
+        public int Capacity { get; private set; } = capacity;
 
         //don't quite like that there are 4 different counts to pick from, but we should only add to all 4 at once anyways, so any works
         public int Count { get { return _pc.Count; } }
@@ -119,7 +124,7 @@ namespace stasisEmulator.NesConsole
         {
             get
             {
-                return new TraceLoggerRow(_pc[index], _byteCode[index], _disassembly[index], _registers[index]);
+                return new TraceLoggerRow(_pc[index], _byteCode[index], _disassembly[index], _registers[index], _cycleCount[index]);
             }
             set
             {
@@ -127,6 +132,7 @@ namespace stasisEmulator.NesConsole
                 _byteCode[index] = value.ByteCode;
                 _disassembly[index] = value.Disassembly;
                 _registers[index] = value.Registers;
+                _cycleCount[index] = value.CycleCount;
             }
         }
 
@@ -136,6 +142,7 @@ namespace stasisEmulator.NesConsole
             _byteCode.Add(row.ByteCode);
             _disassembly.Add(row.Disassembly);
             _registers.Add(row.Registers);
+            _cycleCount.Add(row.CycleCount);
         }
 
         public void Clear()
@@ -144,6 +151,7 @@ namespace stasisEmulator.NesConsole
             _byteCode.Clear();
             _disassembly.Clear();
             _registers.Clear();
+            _cycleCount.Clear();
         }
     }
 }

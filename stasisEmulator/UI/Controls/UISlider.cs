@@ -91,7 +91,7 @@ namespace stasisEmulator.UI.Controls
             set
             {
                 _range = value;
-                if (_range.Min >= _range.Max)
+                if (_range.Min > _range.Max)
                     throw new Exception("Slider range minimum must be greater than maximum.");
             }
         }
@@ -126,6 +126,9 @@ namespace stasisEmulator.UI.Controls
 
         private float GetNormalizedValue()
         {
+            if (Range.Min == Range.Max)
+                return 0;
+
             float drawValue = (Value - Range.Min) / (Range.Max - Range.Min);
             return drawValue;
         }
