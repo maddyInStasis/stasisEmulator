@@ -11,6 +11,8 @@ namespace stasisEmulator.NesConsole
     {
         public bool VerticalMirror;
         public bool AltNametable;
+
+        public byte Mapper;
     }
 
     public struct Rom
@@ -67,6 +69,7 @@ namespace stasisEmulator.NesConsole
             byte flags6 = header[6];
             metadata.VerticalMirror = (flags6 & 1) != 0;
             metadata.AltNametable = (flags6 & 8) != 0;
+            metadata.Mapper = (byte)(flags6 >> 4);
 
             rom.Metadata = metadata;
 

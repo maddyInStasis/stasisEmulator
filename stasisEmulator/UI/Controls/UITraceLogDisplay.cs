@@ -178,8 +178,8 @@ namespace stasisEmulator.UI.Controls
 
         protected override void CalculateContentHeight()
         {
-            ComputedHeight = GetTotalHeight();
-            ComputedMinimumHeight = GetRowHeight() * MinVisibleRows + BorderSize;
+            ComputedHeight = GetRowHeight() * MinVisibleRows + BorderSize;
+            ComputedMinimumHeight = ComputedHeight;
         }
 
         private static string GetInstrName(Cpu.Instr instruction)
@@ -252,19 +252,19 @@ namespace stasisEmulator.UI.Controls
                 Cpu.Addr.ZeroX => $"${argument:X2},X [${effectiveAddr:X2}]",
                 Cpu.Addr.ZeroY => $"${argument:X2},Y [${effectiveAddr:X2}]",
                 Cpu.Addr.Abs => $"{GetRegisterString(argument)}",
-                Cpu.Addr.AbsX => $"${argument:X4},X [${GetRegisterString(argument)}]",
-                Cpu.Addr.AbsXW => $"${argument:X4},X [${GetRegisterString(argument)}]",
-                Cpu.Addr.AbsY => $"${argument:X4},Y [${GetRegisterString(argument)}]",
-                Cpu.Addr.AbsYW => $"${argument:X4},Y [${GetRegisterString(argument)}]",
-                Cpu.Addr.IndX => $"(${argument:X2},X) [${GetRegisterString(argument)}]",
-                Cpu.Addr.IndY => $"(${argument:X2}),Y [${GetRegisterString(argument)}]",
-                Cpu.Addr.IndYW => $"(${argument:X2}),Y [${GetRegisterString(argument)}]",
+                Cpu.Addr.AbsX => $"${argument:X4},X [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.AbsXW => $"${argument:X4},X [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.AbsY => $"${argument:X4},Y [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.AbsYW => $"${argument:X4},Y [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.IndX => $"(${argument:X2},X) [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.IndY => $"(${argument:X2}),Y [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.IndYW => $"(${argument:X2}),Y [{GetRegisterString(effectiveAddr)}]",
                 Cpu.Addr.Rel => $"${argument:X4}",
                 Cpu.Addr.Other => disassembly.Instruction switch
                 {
-                    Cpu.Instr.JMP_abs => $"${GetRegisterString(argument)}",
-                    Cpu.Instr.JMP_ind => $"(${argument:X4}) [${GetRegisterString(argument)}]",
-                    Cpu.Instr.JSR => $"${GetRegisterString(argument)}",
+                    Cpu.Instr.JMP_abs => $"{GetRegisterString(argument)}",
+                    Cpu.Instr.JMP_ind => $"(${argument:X4}) [{GetRegisterString(effectiveAddr)}]",
+                    Cpu.Instr.JSR => $"{GetRegisterString(argument)}",
                     Cpu.Instr.RTI => "",
                     _ => "DisplayNotImpl"
                 },

@@ -1,32 +1,34 @@
 ﻿using Microsoft.Xna.Framework;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace stasisEmulator.NesConsole
 {
     public class Ppu
     {
         private ushort _v;
-        public ushort v { set => _v = (ushort)(value & FifteenBits); get => _v; }
+        public ushort v { get => _v; set => _v = (ushort)(value & 0x7FFF); }
         private ushort _t;
-        public ushort t { set => _t = (ushort)(value & FifteenBits); get => _t; }
+        public ushort t { get => _t; set => _t = (ushort)(value & 0x7FFF); }
         private ushort _x;
-        public ushort x { set => _x = (ushort)(value & ThreeBits); get => _x; }
-        public bool w { set; get; }
+        public ushort x { get => _x; set => _x = (ushort)(value & 7); }
+        public bool w { get; set; }
+
+        public byte OamAddress { get; set; }
+        private byte _secondaryOamAddress = 0;
+        public byte SecondaryOamAddress { get => _secondaryOamAddress; set => _secondaryOamAddress = (byte)(value & 0x1F); }
+        public bool SecondaryOamFull { get; set; }
 
         public readonly byte[] Vram = new byte[0x800];
         public readonly byte[] PaletteRam = new byte[0x20];
+        public readonly byte[] Oam = new byte[0x100];
+        public readonly byte[] SecondaryOam = new byte[0x20];
 
-        public int Dot { get; private set; } = 4;
+        public int Dot { get; private set; }
         public int Scanline { get; private set; }
 
         public bool FrameComplete { get; set; }
 
         //PPUCTRL
-        public byte NametableSelect { get; private set; }
         public bool VramInc32 { get; private set; }
         public bool SpriteSecondPatternTable { get; private set; }
         public bool BackgroundSecondPatternTable { get; private set; }
@@ -34,8 +36,8 @@ namespace stasisEmulator.NesConsole
         public bool EnableNMI { get; private set; }
 
         //PPUMASK
-        public bool MaskLeftBG { get; private set; }
-        public bool MaskLeftSprites { get; private set; }
+        public bool ShowLeftBG { get; private set; }
+        public bool ShowLeftSprites { get; private set; }
         public bool RenderBG { get; private set; }
         public bool RenderSprites { get; private set; }
 
@@ -46,10 +48,9 @@ namespace stasisEmulator.NesConsole
 
         public readonly Color[] Palette = new Color[64];
 
-        private readonly Nes _nes;
-
-        private const ushort FifteenBits = 0xFFFF >> 1;
-        private const ushort ThreeBits = 0xFF >> 5;
+        public const int PixelWidth = 256;
+        public const int PixelHeight = 240;
+        public readonly Color[] OutputBuffer = new Color[PixelWidth * PixelHeight];
 
         public const ushort RegMask = 0x2007;
 
@@ -62,8 +63,50 @@ namespace stasisEmulator.NesConsole
         public const ushort PPUADDR   = 0x2006;
         public const ushort PPUDATA   = 0x2007;
 
+        private readonly Nes _nes;
+
+        private const ushort CoarseXMask = 0b11111;
+        private const ushort CoarseYMask = 0b11111 << 5;
+        private const ushort NametableMask = 0b11 << 10;
+        private const ushort NametableXMask = 0b01 << 10;
+        private const ushort NametableYMask = 0b10 << 10;
+        private const ushort FineYMask = 0b111 << 12;
+        private const ushort AllXMask = (NametableXMask | CoarseXMask);
+        private const ushort AllYMask = (FineYMask | NametableYMask | CoarseYMask);
+
         private byte _ioBus;
         private byte _readBuffer;
+
+        private bool _nmiLevelDetector;
+
+        private byte _spriteEvalTemp;
+        private ushort _spriteAddressBus;
+        private byte _spriteEvalTick;
+        private bool _scanlineContainsSprite0;
+        private bool _nextScanlineContainsSprite0;
+        private bool _spriteEvalOverflowed;
+        private byte _secondaryOamSize;
+
+        private readonly byte[] _shiftSpritePatternLow = new byte[8];
+        private readonly byte[] _shiftSpritePatternHigh = new byte[8];
+
+        private readonly byte[] _spriteAttribute = new byte[8];
+        private readonly byte[] _spriteTileIndex = new byte[8];
+        private readonly byte[] _spriteXPosition = new byte[8];
+        private readonly byte[] _spriteYPosition = new byte[8];
+
+        private ushort _bgAddressBus;
+        private byte _fetchTemp;
+        private byte _fetchTileIndex;
+
+        private byte _fetchBgPatternLow;
+        private byte _fetchBgPatternHigh;
+        private byte _fetchBgAttribute;
+
+        private ushort _shiftBgPatternLow;
+        private ushort _shiftBgPatternHigh;
+        private ushort _shiftBgAttributeLow;
+        private ushort _shiftBgAttributeHigh;
 
         //from 100th coin patreon post
         private readonly byte[] _pal = [
@@ -92,27 +135,67 @@ namespace stasisEmulator.NesConsole
         {
             Sprite0Hit = false;
             v = 0;
+            OamAddress = 0;
 
             Reset();
         }
 
         public void Reset()
         {
-            NametableSelect = 0;
             VramInc32 = false;
             SpriteSecondPatternTable = false;
             BackgroundSecondPatternTable = false;
             Use8x16Sprites = false;
             EnableNMI = false;
 
-            MaskLeftBG = false;
-            MaskLeftSprites = false;
+            ShowLeftBG = false;
+            ShowLeftSprites = false;
             RenderBG = false;
             RenderSprites = false;
 
             w = false;
             t = 0;
             _readBuffer = 0;
+        }
+
+        public void Read(ushort address, ref byte dataBus)
+        {
+            if (address < 0x2000)
+            {
+                _nes.Cartridge?.ReadCartridgePpu(address, ref dataBus);
+            }
+            else if (address < 0x3F00)
+            {
+                ReadNametable(address, ref dataBus);
+            }
+            else
+            {
+                byte pal;
+                if ((address & 3) == 0)
+                    pal = PaletteRam[address & 0x0F];
+                else
+                    pal = PaletteRam[address & 0x1F];
+                dataBus = (byte)((dataBus & (0xF0 << 2)) | (pal & (0xFF >> 2)));
+            }
+        }
+
+        public void Write(ushort address, byte dataBus)
+        {
+            if (address < 0x2000)
+            {
+                _nes.Cartridge?.WriteCartridgePpu(address, dataBus);
+            }
+            else if (v < 0x3F00)
+            {
+                WriteNametable(address, dataBus);
+            }
+            else
+            {
+                if ((address & 3) == 0)
+                    PaletteRam[address & 0x0F] = dataBus;
+                else
+                    PaletteRam[address & 0x1F] = dataBus;
+            }
         }
 
         public byte ReadRegister(ushort address, ref byte dataBus)
@@ -125,30 +208,38 @@ namespace stasisEmulator.NesConsole
                     _ioBus = (byte)(_ioBus & (0xFF >> 3));
                     _ioBus |= (byte)(SpriteOverflow ? 0x20 : 0);
                     _ioBus |= (byte)(Sprite0Hit ? 0x40 : 0);
-                    _ioBus |= 0x40; //TODO: temp, remove
                     _ioBus |= (byte)(VBlank ? 0x80 : 0);
                     VBlank = false;
                     w = false;
                     break;
                 case OAMDATA:
+                    if (Scanline < 240 && Dot >= 1 && Dot <= 64)
+                    {
+                        _ioBus = 0xFF;
+                        break;
+                    }
+
+                    if ((OamAddress & 3) != 2)
+                        _ioBus = Oam[OamAddress];
+                    else
+                        _ioBus = (byte)((_ioBus & 0b00011100) | (Oam[OamAddress] & 0b11100011));
+
                     break;
                 case PPUDATA:
-                    _ioBus = _readBuffer;
                     if (v < 0x2000)
                     {
-                        _nes.Cartridge?.ReadCartridgePpu(v, ref _readBuffer);
+                        _ioBus = _readBuffer;
+                        Read(v, ref _readBuffer);
                     }
                     else if (v < 0x3F00)
                     {
-                        ReadNametable(v, ref _readBuffer);
+                        _ioBus = _readBuffer;
+                        Read(v, ref _readBuffer);
                     }
                     else
                     {
                         ReadNametable(v, ref _readBuffer);
-                        if ((v & 3) == 0)
-                            _ioBus = PaletteRam[v & 0x0F];
-                        else
-                            _ioBus = PaletteRam[v & 0x1F];
+                        Read(v, ref _ioBus);
                     }
                     v += (ushort)(VramInc32 ? 32 : 1);
                     break;
@@ -167,7 +258,7 @@ namespace stasisEmulator.NesConsole
             switch (register)
             {
                 case PPUCTRL:
-                    NametableSelect = (byte)(_ioBus & 3);
+                    t = (ushort)((t & (0xFFFF ^ NametableMask)) | ((_ioBus & 3) << 10));
                     VramInc32 = (_ioBus & 4) != 0;
                     SpriteSecondPatternTable = (_ioBus & 8) != 0;
                     BackgroundSecondPatternTable = (_ioBus & 16) != 0;
@@ -175,16 +266,29 @@ namespace stasisEmulator.NesConsole
                     EnableNMI = (_ioBus & 128) != 0;
                     break;
                 case PPUMASK:
-                    MaskLeftBG = (_ioBus & 2) != 0;
-                    MaskLeftSprites = (_ioBus & 4) != 0;
+                    ShowLeftBG = (_ioBus & 2) != 0;
+                    ShowLeftSprites = (_ioBus & 4) != 0;
                     RenderBG = (_ioBus & 8) != 0;
                     RenderSprites = (_ioBus & 16) != 0;
                     break;
                 case OAMADDR:
+                    OamAddress = _ioBus;
                     break;
                 case OAMDATA:
+                    Oam[OamAddress] = _ioBus;
+                    OamAddress++;
                     break;
                 case PPUSCROLL:
+                    if (!w)
+                    {
+                        t = (ushort)((t & (AllYMask | NametableMask)) | (_ioBus >> 3));
+                        x = _ioBus;
+                    }
+                    else
+                    {
+                        t = (ushort)((t & (AllXMask | NametableMask)) | (_ioBus << 12) | ((_ioBus << 2) & CoarseYMask));
+                    }
+                    w = !w;
                     break;
                 case PPUADDR:
                     if (!w)
@@ -201,21 +305,7 @@ namespace stasisEmulator.NesConsole
                     w = !w;
                     break;
                 case PPUDATA:
-                    if (v < 0x2000)
-                    {
-                        _nes.Cartridge?.WriteCartridgePpu(address, _ioBus);
-                    }
-                    else if (v < 0x3F00)
-                    {
-                        WriteNametable(v, _ioBus);
-                    }
-                    else
-                    {
-                        if ((v & 3) == 0)
-                            PaletteRam[v & 0x0F] = _ioBus;
-                        else
-                            PaletteRam[v & 0x1F] = _ioBus;
-                    }
+                    Write(v, _ioBus);
                     v += (ushort)(VramInc32 ? 32 : 1);
                     break;
             }
@@ -273,17 +363,8 @@ namespace stasisEmulator.NesConsole
             }
         }
 
-        private bool _nmiLevelDetector;
-
         public void RunCycle()
         {
-            bool prevNmiLevelDetector = _nmiLevelDetector;
-            _nmiLevelDetector = EnableNMI && VBlank;
-            if (!prevNmiLevelDetector && _nmiLevelDetector)
-            {
-                _nes.Cpu.DoNmi = true;
-            }
-
             if (Dot == 1 && Scanline == 241)
             {
                 VBlank = true;
@@ -296,6 +377,91 @@ namespace stasisEmulator.NesConsole
                 SpriteOverflow = false;
             }
 
+            bool prevNmiLevelDetector = _nmiLevelDetector;
+            _nmiLevelDetector = EnableNMI && VBlank;
+            if (!prevNmiLevelDetector && _nmiLevelDetector)
+            {
+                _nes.Cpu.DoNmi = true;
+            }
+
+            DoSpriteEvaluation();
+            DoBgRead();
+            if (RenderBG || RenderSprites)
+            {
+                if (Dot > 1 && Dot <= 256)
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (_spriteXPosition[i] > 0)
+                        {
+                            _spriteXPosition[i]--;
+                        }
+                        else
+                        {
+                            _shiftSpritePatternLow[i] <<= 1;
+                            _shiftSpritePatternHigh[i] <<= 1;
+                        }
+                    }
+                }
+            }
+
+            if (Scanline < 240 && Dot > 0 && Dot <= 256)
+            {
+                byte bgPalette = 0;
+                byte bgPaletteIndex = 0;
+                if (RenderBG && (Dot > 8 || ShowLeftBG))
+                {
+                    byte colLow = (byte)((_shiftBgPatternLow >> (15 - x)) & 1);
+                    byte colHigh = (byte)((_shiftBgPatternHigh >> (15 - x)) & 1);
+                    bgPaletteIndex = (byte)((colHigh << 1) | colLow);
+
+                    byte paletteLow = (byte)((_shiftBgAttributeLow >> (15 - x)) & 1);
+                    byte paletteHigh = (byte)((_shiftBgAttributeHigh >> (15 - x)) & 1);
+                    bgPalette = (byte)((paletteHigh << 1) | paletteLow);
+
+                    if (bgPaletteIndex == 0)
+                        bgPalette = 0;
+                }
+
+                byte spritePalette = 0;
+                byte spritePaletteIndex = 0;
+                bool spritePriority = false;
+                if (RenderSprites && (Dot > 8 || ShowLeftSprites))
+                {
+                    for (int i = 0; i < 8; i++)
+                    {
+                        if (i >= (_secondaryOamSize / 4))
+                            break;
+                        if (_spriteXPosition[i] > 0)
+                            continue;
+
+                        byte spriteColLow = (byte)(_shiftSpritePatternLow[i] >> 7);
+                        byte spriteColHigh = (byte)(_shiftSpritePatternHigh[i] >> 7);
+                        spritePaletteIndex = (byte)((spriteColHigh << 1) | spriteColLow);
+
+                        if (spritePaletteIndex == 0)
+                            continue;
+
+                        spritePalette = (byte)((_spriteAttribute[i] & 0x03) | 0x04);
+                        spritePriority = (_spriteAttribute[i] & 0x20) == 0;
+
+                        if (i == 0 && _scanlineContainsSprite0 && spritePaletteIndex != 0 && bgPaletteIndex != 0 && RenderBG && Dot < 256)
+                        {
+                            Sprite0Hit = true;
+                        }
+
+                        break;
+                    }
+                }
+
+                bool drawSprite = (spritePriority || bgPaletteIndex == 0) && spritePaletteIndex != 0;
+                byte palette = drawSprite ? spritePalette : bgPalette;
+                byte paletteIndex = drawSprite ? spritePaletteIndex : bgPaletteIndex;
+
+                byte colIndex = PaletteRam[palette * 4 + paletteIndex];
+                SetOutputPixel(Dot - 1, Scanline, Palette[colIndex & 63]);
+            }
+
             Dot++;
             if (Dot > 340)
             {
@@ -303,6 +469,334 @@ namespace stasisEmulator.NesConsole
                 Scanline++;
                 if (Scanline > 261)
                     Scanline = 0;
+            }
+        }
+
+        public void SetOutputPixel(int x, int y, Color color)
+        {
+            OutputBuffer[y * 256 + x] = color;
+        }
+
+        private void DoBgRead()
+        {
+            if (Scanline > 239 && Scanline != 261)
+                return;
+
+            if (!RenderBG && !RenderSprites)
+                return;
+
+            if ((Dot > 0 && Dot < 257) || (Dot > 320 && Dot < 337))
+            {
+                _shiftBgPatternLow <<= 1;
+                _shiftBgPatternHigh <<= 1;
+                _shiftBgAttributeLow <<= 1;
+                _shiftBgAttributeHigh <<= 1;
+
+                byte cycleTick = (byte)((Dot - 1) & 7);
+                switch (cycleTick)
+                {
+                    case 0:
+                        _shiftBgPatternLow = (ushort)((_shiftBgPatternLow & 0xFF00) | _fetchBgPatternLow);
+                        _shiftBgPatternHigh = (ushort)((_shiftBgPatternHigh & 0xFF00) | _fetchBgPatternHigh);
+                        _shiftBgAttributeLow = (ushort)((_shiftBgAttributeLow & 0xFF00) | ((_fetchBgAttribute & 1) != 0 ? 0xFF : 0));
+                        _shiftBgAttributeHigh = (ushort)((_shiftBgAttributeHigh & 0xFF00) | ((_fetchBgAttribute & 2) != 0 ? 0xFF : 0));
+                        //v = yyyNNYYYYYXXXXX
+                        //nametable start address + NNYYYYYXXXXX
+                        _bgAddressBus = (ushort)(0x2000 + (v & (NametableMask | CoarseYMask | CoarseXMask)));
+                        Read(_bgAddressBus, ref _fetchTemp);
+                        break;
+                    case 1:
+                        _fetchTileIndex = _fetchTemp;
+                        break;
+                    case 2:
+                        //v = yyyNNYYYYYXXXXX
+                        //(attribute start address) | (nametable select) | ((upper 3 bits of Y) << 3) | (upper 3 bits of X)
+                        _bgAddressBus = (ushort)(0x23C0 | (v & NametableMask) | (((v >> 7) & 0b111) << 3) | ((v >> 2) & 0b111));
+                        Read(_bgAddressBus, ref _fetchTemp);
+                        break;
+                    case 3:
+                        _fetchBgAttribute = _fetchTemp;
+                        //v = yyyNNYYYYYXXXXX
+                        //is bit 1 of X set?
+                        if ((v & 0b10) != 0)
+                        {
+                            _fetchBgAttribute >>= 2;
+                        }
+                        //is bit 1 of Y set?
+                        if ((v & 0b1000000) != 0)
+                        {
+                            _fetchBgAttribute >>= 4;
+                        }
+                        _fetchBgAttribute &= 3;
+                        break;
+                    case 4:
+                        //v = yyyNNYYYYYXXXXX
+                        //yyy (pixel row) + (tile index * tile size)
+                        //add second pattern table offset if using second pattern table
+                        _bgAddressBus = (ushort)(((v & FineYMask) >> 12) + _fetchTileIndex * 16 + (BackgroundSecondPatternTable ? 0x1000 : 0));
+                        Read(_bgAddressBus, ref _fetchTemp);
+                        break;
+                    case 5:
+                        _fetchBgPatternLow = _fetchTemp;
+                        _bgAddressBus += 8;
+                        break;
+                    case 6:
+                        Read(_bgAddressBus, ref _fetchTemp);
+                        break;
+                    case 7:
+                        _fetchBgPatternHigh = _fetchTemp;
+                        IncrementScrollX();
+                        break;
+                }
+            }
+
+            if (Dot == 256)
+            {
+                IncrementScrollY();
+            }
+            if (Dot == 257)
+            {
+                ResetScrollX();
+            }
+            if (Dot >= 280 && Dot <= 304 && Scanline == 261)
+            {
+                ResetScrollY();
+            }
+        }
+
+        public void IncrementScrollX()
+        {
+            //is XXXXX at its max value?
+            if ((v & CoarseXMask) == CoarseXMask)
+            {
+                //handle nametable crossing ($2400 should cross back to $2000, not increment to $2800)
+                //clear XXXXX
+                v &= (0xFFFF ^ CoarseXMask);
+                //flip bit 0 of NN
+                v ^= NametableXMask;
+            }
+            else
+            {
+                v++;
+            }
+        }
+
+        public void IncrementScrollY()
+        {
+            if ((v & FineYMask) != FineYMask)
+            {
+                //increment yyy
+                v += 0x1000;
+            }
+            else
+            {
+                v &= (NametableMask | CoarseYMask | CoarseXMask);
+                int coarseY = (v & CoarseYMask) >> 5;
+                if (coarseY == 29) //only 30 tiles vertically (starting at 0)
+                {
+                    //handle nametable crossing ($2000 should cross to $2800, not increment to $2400)
+                    //clear YYYYY
+                    coarseY = 0;
+                    //flip bit 1 of NN
+                    v ^= NametableYMask;
+                }
+                else
+                {
+                    coarseY++;
+                }
+                //clear old coarse y, replace with new coarse y
+                v = (ushort)((v & (0xFFFF ^ CoarseYMask)) | (coarseY << 5));
+            }
+        }
+
+        public void ResetScrollX()
+        {
+            v = (ushort)((v & AllYMask) | (t & AllXMask));
+        }
+
+        public void ResetScrollY()
+        {
+            v = (ushort)((v & AllXMask) | (t & AllYMask));
+        }
+
+        private void DoSpriteEvaluation()
+        {
+            if (Scanline > 239)
+                return;
+
+            if (Dot <= 64)
+                DoOamClear();
+            if (Dot > 64 && Dot <= 256)
+                EvaluateSprites();
+            if (Dot > 256 && Dot <= 320)
+            {
+                OamAddress = 0;
+                if (Dot == 257)
+                {
+                    _secondaryOamSize = SecondaryOamAddress;
+                    if (SecondaryOamFull)
+                        _secondaryOamSize = 0x20;
+                    SecondaryOamAddress = 0;
+                    _spriteEvalTick = 0;
+                }
+
+                byte secondaryOamSlot = (byte)(SecondaryOamAddress >> 2);
+
+                switch(_spriteEvalTick)
+                {
+                    case 0:
+                        _spriteYPosition[secondaryOamSlot] = SecondaryOam[SecondaryOamAddress];
+                        SecondaryOamAddress++;
+                        break;
+                    case 1:
+                        _spriteTileIndex[secondaryOamSlot] = SecondaryOam[SecondaryOamAddress];
+                        SecondaryOamAddress++;
+                        break;
+                    case 2:
+                        _spriteAttribute[secondaryOamSlot] = SecondaryOam[SecondaryOamAddress];
+                        SecondaryOamAddress++;
+                        break;
+                    case 3:
+                        _spriteXPosition[secondaryOamSlot] = SecondaryOam[SecondaryOamAddress];
+                        break;
+                    case 4:
+                        byte spriteTileIndex = _spriteTileIndex[secondaryOamSlot];
+                        bool flipVert = (_spriteAttribute[secondaryOamSlot] & 0x80) != 0;
+                        ushort tileAddress;
+                        if (!Use8x16Sprites)
+                        {
+                            tileAddress = (ushort)(SpriteSecondPatternTable ? 0x1000 : 0);
+                            tileAddress += (ushort)(spriteTileIndex * 16);
+                        }
+                        else
+                        {
+                            tileAddress = (ushort)((spriteTileIndex & 1) != 0 ? 0x1000 : 0);
+                            tileAddress += (ushort)(((spriteTileIndex & (0xFF ^ 1)) | (flipVert ? 1 : 0)) * 16);
+                        }
+
+                        byte row = (byte)(Scanline - _spriteYPosition[secondaryOamSlot]);
+                        if (flipVert)
+                            row = (byte)(7 - row);
+
+                        _spriteAddressBus = (ushort)(tileAddress + row);
+                        break;
+                    case 5:
+                        Read(_spriteAddressBus, ref _spriteEvalTemp);
+                        if (Scanline == 261)
+                        {
+                            _spriteEvalTemp = 0;
+                        }
+                        //flip x
+                        if ((_spriteAttribute[secondaryOamSlot] & 0x40) != 0)
+                        {
+                            //reverse bit order
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xF0) >> 4) | ((_spriteEvalTemp & 0x0F) << 4));
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xCC) >> 2) | ((_spriteEvalTemp & 0x33) << 2));
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xAA) >> 1) | ((_spriteEvalTemp & 0x55) << 1));
+                        }
+                        _shiftSpritePatternLow[secondaryOamSlot] = _spriteEvalTemp;
+                        break;
+                    case 6:
+                        _spriteAddressBus += 8;
+                        break;
+                    case 7:
+                        Read(_spriteAddressBus, ref _spriteEvalTemp);
+                        if (Scanline == 261)
+                        {
+                            _spriteEvalTemp = 0;
+                        }
+                        //flip x
+                        if ((_spriteAttribute[secondaryOamSlot] & 0x40) != 0)
+                        {
+                            //reverse bit order
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xF0) >> 4) | ((_spriteEvalTemp & 0x0F) << 4));
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xCC) >> 2) | ((_spriteEvalTemp & 0x33) << 2));
+                            _spriteEvalTemp = (byte)(((_spriteEvalTemp & 0xAA) >> 1) | ((_spriteEvalTemp & 0x55) << 1));
+                        }
+                        _shiftSpritePatternHigh[secondaryOamSlot] = _spriteEvalTemp;
+                        SecondaryOamAddress++;
+                        break;
+                }
+                _spriteEvalTick++;
+                _spriteEvalTick &= 7;
+            }
+        }
+
+        private void DoOamClear()
+        {
+            if (Dot == 0)
+            {
+                SecondaryOamFull = false;
+                _spriteEvalOverflowed = false;
+
+                if (Scanline == 0)
+                    _nextScanlineContainsSprite0 = false;
+
+                _scanlineContainsSprite0 = _nextScanlineContainsSprite0;
+                _nextScanlineContainsSprite0 = false;
+                return;
+            }
+
+            if ((Dot & 1) == 1)
+            {
+                _spriteEvalTemp = 0xFF;
+            }
+            else
+            {
+                SecondaryOam[SecondaryOamAddress] = _spriteEvalTemp;
+                SecondaryOamAddress++;
+            }
+        }
+
+        private void EvaluateSprites()
+        {
+            if (_spriteEvalOverflowed)
+                return;
+
+            if ((Dot & 1) == 1)
+            {
+                _spriteEvalTemp = Oam[OamAddress];
+                return;
+            }
+
+            if (!SecondaryOamFull)
+            {
+                SecondaryOam[SecondaryOamAddress] = _spriteEvalTemp;
+            }
+            if (_spriteEvalTick == 0)
+            {
+                if (Scanline - _spriteEvalTemp >= 0 && Scanline - _spriteEvalTemp < (Use8x16Sprites ? 16 : 8)) //sprite on scanline
+                {
+                    if (!SecondaryOamFull)
+                    {
+                        if (Dot == 66)
+                            _nextScanlineContainsSprite0 = true;
+                        SecondaryOamAddress++;
+                        OamAddress++;
+                    }
+                    else
+                    {
+                        SpriteOverflow = true;
+                    }
+                    _spriteEvalTick++;
+                }
+                else
+                {
+                    OamAddress += 4;
+                }
+            }
+            else
+            {
+                SecondaryOamAddress++;
+                OamAddress++;
+                if (SecondaryOamAddress == 0)
+                    SecondaryOamFull = true;
+                _spriteEvalTick++;
+                _spriteEvalTick &= 3;
+            }
+            if (OamAddress == 0)
+            {
+                _spriteEvalOverflowed = true;
             }
         }
     }

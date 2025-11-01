@@ -31,7 +31,22 @@ namespace stasisEmulator.NesConsole
             JMP_abs, JMP_ind, JSR, RTS, RTI,
             PHA, PLA, PHP, PLP, TXS, TSX,
             CLC, SEC, CLI, SEI, CLD, SED, CLV,
-            NOP
+            NOP,
+            //unofficial
+            SLO,
+            RLA,
+            SRE,
+            RRA,
+            SAX,
+            LAX,
+            DCP,
+            ISC,
+
+            ANC,
+            ASR,
+            ARR,
+
+            AXS
         }
 
         public enum Addr
@@ -57,22 +72,22 @@ namespace stasisEmulator.NesConsole
 
         public static readonly Instr[] Instructions = [
             //00           01             02             03             04             05             06             07             08             09             0A             0B             0C             0D             0E             0F
-            Instr.BRK    , Instr.ORA    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.NotImpl, Instr.PHP    , Instr.ORA    , Instr.ASL    , Instr.NotImpl, Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.NotImpl, //00
-            Instr.BPL    , Instr.ORA    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.NotImpl, Instr.CLC    , Instr.ORA    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.NotImpl, //10
-            Instr.JSR    , Instr.AND    , Instr.HLT    , Instr.NotImpl, Instr.BIT    , Instr.AND    , Instr.ROL    , Instr.NotImpl, Instr.PLP    , Instr.AND    , Instr.ROL    , Instr.NotImpl, Instr.BIT    , Instr.AND    , Instr.ROL    , Instr.NotImpl, //20
-            Instr.BMI    , Instr.AND    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.NotImpl, Instr.SEC    , Instr.AND    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.NotImpl, //30
-            Instr.RTI    , Instr.EOR    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.PHA    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.JMP_abs, Instr.EOR    , Instr.LSR    , Instr.NotImpl, //40
-            Instr.BVC    , Instr.EOR    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, Instr.CLI    , Instr.EOR    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.NotImpl, //50
-            Instr.RTS    , Instr.ADC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.PLA    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.JMP_ind, Instr.ADC    , Instr.ROR    , Instr.NotImpl, //60
-            Instr.BVS    , Instr.ADC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, Instr.SEI    , Instr.ADC    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.NotImpl, //70
-            Instr.NOP    , Instr.STA    , Instr.NOP    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, Instr.DEY    , Instr.NOP    , Instr.TXA    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, //80
-            Instr.BCC    , Instr.STA    , Instr.HLT    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.NotImpl, Instr.TYA    , Instr.STA    , Instr.TXS    , Instr.NotImpl, Instr.NotImpl, Instr.STA    , Instr.NotImpl, Instr.NotImpl, //90
-            Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.NotImpl, Instr.TAY    , Instr.LDA    , Instr.TAX    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.NotImpl, //A0
-            Instr.BCS    , Instr.LDA    , Instr.HLT    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.NotImpl, Instr.CLV    , Instr.LDA    , Instr.TSX    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.NotImpl, //B0
-            Instr.CPY    , Instr.CMP    , Instr.NOP    , Instr.NotImpl, Instr.CPY    , Instr.CMP    , Instr.DEC    , Instr.NotImpl, Instr.INY    , Instr.CMP    , Instr.DEX    , Instr.NotImpl, Instr.CPY    , Instr.CMP    , Instr.DEC    , Instr.NotImpl, //C0
-            Instr.BNE    , Instr.CMP    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.CMP    , Instr.DEC    , Instr.NotImpl, Instr.CLD    , Instr.CMP    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.CMP    , Instr.DEC    , Instr.NotImpl, //D0
-            Instr.CPX    , Instr.SBC    , Instr.NOP    , Instr.NotImpl, Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.NotImpl, Instr.INX    , Instr.SBC    , Instr.NOP    , Instr.SBC    , Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.NotImpl, //E0
-            Instr.BEQ    , Instr.SBC    , Instr.HLT    , Instr.NotImpl, Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.NotImpl, Instr.SED    , Instr.SBC    , Instr.NOP    , Instr.NotImpl, Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.NotImpl  //F0
+            Instr.BRK    , Instr.ORA    , Instr.HLT    , Instr.SLO    , Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.SLO    , Instr.PHP    , Instr.ORA    , Instr.ASL    , Instr.ANC    , Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.SLO    , //00
+            Instr.BPL    , Instr.ORA    , Instr.HLT    , Instr.SLO    , Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.SLO    , Instr.CLC    , Instr.ORA    , Instr.NOP    , Instr.SLO    , Instr.NOP    , Instr.ORA    , Instr.ASL    , Instr.SLO    , //10
+            Instr.JSR    , Instr.AND    , Instr.HLT    , Instr.RLA    , Instr.BIT    , Instr.AND    , Instr.ROL    , Instr.RLA    , Instr.PLP    , Instr.AND    , Instr.ROL    , Instr.ANC    , Instr.BIT    , Instr.AND    , Instr.ROL    , Instr.RLA    , //20
+            Instr.BMI    , Instr.AND    , Instr.HLT    , Instr.RLA    , Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.RLA    , Instr.SEC    , Instr.AND    , Instr.NOP    , Instr.RLA    , Instr.NOP    , Instr.AND    , Instr.ROL    , Instr.RLA    , //30
+            Instr.RTI    , Instr.EOR    , Instr.HLT    , Instr.SRE    , Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.SRE    , Instr.PHA    , Instr.EOR    , Instr.LSR    , Instr.ASR    , Instr.JMP_abs, Instr.EOR    , Instr.LSR    , Instr.SRE    , //40
+            Instr.BVC    , Instr.EOR    , Instr.HLT    , Instr.SRE    , Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.SRE    , Instr.CLI    , Instr.EOR    , Instr.NOP    , Instr.SRE    , Instr.NOP    , Instr.EOR    , Instr.LSR    , Instr.SRE    , //50
+            Instr.RTS    , Instr.ADC    , Instr.HLT    , Instr.RRA    , Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.RRA    , Instr.PLA    , Instr.ADC    , Instr.ROR    , Instr.ARR    , Instr.JMP_ind, Instr.ADC    , Instr.ROR    , Instr.RRA    , //60
+            Instr.BVS    , Instr.ADC    , Instr.HLT    , Instr.RRA    , Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.RRA    , Instr.SEI    , Instr.ADC    , Instr.NOP    , Instr.RRA    , Instr.NOP    , Instr.ADC    , Instr.ROR    , Instr.RRA    , //70
+            Instr.NOP    , Instr.STA    , Instr.NOP    , Instr.SAX    , Instr.STY    , Instr.STA    , Instr.STX    , Instr.SAX    , Instr.DEY    , Instr.NOP    , Instr.TXA    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.SAX    , //80
+            Instr.BCC    , Instr.STA    , Instr.HLT    , Instr.NotImpl, Instr.STY    , Instr.STA    , Instr.STX    , Instr.SAX    , Instr.TYA    , Instr.STA    , Instr.TXS    , Instr.NotImpl, Instr.NotImpl, Instr.STA    , Instr.NotImpl, Instr.NotImpl, //90
+            Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.LAX    , Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.LAX    , Instr.TAY    , Instr.LDA    , Instr.TAX    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.LAX    , //A0
+            Instr.BCS    , Instr.LDA    , Instr.HLT    , Instr.LAX    , Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.LAX    , Instr.CLV    , Instr.LDA    , Instr.TSX    , Instr.NotImpl, Instr.LDY    , Instr.LDA    , Instr.LDX    , Instr.LAX    , //B0
+            Instr.CPY    , Instr.CMP    , Instr.NOP    , Instr.DCP    , Instr.CPY    , Instr.CMP    , Instr.DEC    , Instr.DCP    , Instr.INY    , Instr.CMP    , Instr.DEX    , Instr.AXS    , Instr.CPY    , Instr.CMP    , Instr.DEC    , Instr.DCP    , //C0
+            Instr.BNE    , Instr.CMP    , Instr.HLT    , Instr.DCP    , Instr.NOP    , Instr.CMP    , Instr.DEC    , Instr.DCP    , Instr.CLD    , Instr.CMP    , Instr.NOP    , Instr.DCP    , Instr.NOP    , Instr.CMP    , Instr.DEC    , Instr.DCP    , //D0
+            Instr.CPX    , Instr.SBC    , Instr.NOP    , Instr.ISC    , Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.ISC    , Instr.INX    , Instr.SBC    , Instr.NOP    , Instr.SBC    , Instr.CPX    , Instr.SBC    , Instr.INC    , Instr.ISC    , //E0
+            Instr.BEQ    , Instr.SBC    , Instr.HLT    , Instr.ISC    , Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.ISC    , Instr.SED    , Instr.SBC    , Instr.NOP    , Instr.ISC    , Instr.NOP    , Instr.SBC    , Instr.INC    , Instr.ISC      //F0
         ];
 
         public static readonly Addr[] AddressingModes = [
@@ -178,6 +193,14 @@ namespace stasisEmulator.NesConsole
         private bool _halt = false;
         private bool _break = false;
 
+        private bool _isReadCycle = false;
+
+        private bool _dmaTryHalt = false;
+        private bool _dmaTryAlign = false;
+        private bool _inDma = false;
+        private ushort _dmaPage;
+        private byte _dmaIndex = 0;
+
         private bool _doReset = false;
 
         public void Power()
@@ -211,7 +234,6 @@ namespace stasisEmulator.NesConsole
             _doReset = true;
         }
 
-        //TODO: remove temp controller stuff
         private byte Read(ushort address)
         {
             if (address < 0x2000)
@@ -225,14 +247,13 @@ namespace stasisEmulator.NesConsole
             else if (address == 0x4017)
                 _nes.Player2Controller?.RegisterRead(ref _dataBus);
 
+            _isReadCycle = true;
+
             return _dataBus;
         }
         private void Write(ushort address, byte value)
         {
             _dataBus = value;
-
-            //if (address == 0x600)
-            //    _break = true;
 
             if (address < 0x2000)
                 Ram[address & (0x800 - 1)] = value;
@@ -240,11 +261,19 @@ namespace stasisEmulator.NesConsole
                 _nes.Cartridge?.WriteCartridgeCpu(address, value);
             else if (address < 0x4000)
                 _nes.Ppu.WriteRegister(address, value);
+            else if (address == 0x4014)
+            {
+                _dmaTryHalt = true;
+                _dmaPage = (ushort)(value << 8);
+                _dmaIndex = 0;
+            }
             else if (address == 0x4016)
             {
                 _nes.Player1Controller?.RegisterWrite(value);
                 _nes.Player2Controller?.RegisterWrite(value);
             }
+
+            _isReadCycle = false;
         }
 
         private void Push(byte value)
@@ -257,6 +286,13 @@ namespace stasisEmulator.NesConsole
         {
             if (_halt)
                 return;
+
+            if (_inDma)
+            {
+                DoDma();
+                CycleCount++;
+                return;
+            }
 
             switch (_operationPhase)
             {
@@ -272,9 +308,40 @@ namespace stasisEmulator.NesConsole
             }
 
             CycleCount++;
+
+            if (_dmaTryHalt && _isReadCycle)
+            {
+                _inDma = true;
+                _dmaTryAlign = true;
+                _dmaTryHalt = false;
+            }
         }
 
-        public void Fetch()
+        private void DoDma()
+        {
+            bool getCycle = (CycleCount & 1) == 0;
+
+            if (_dmaTryAlign && !getCycle)
+                return;
+
+            _dmaTryAlign = false;
+
+            if (getCycle)
+            {
+                Read((ushort)(_dmaPage + _dmaIndex));
+            }
+            else
+            {
+                Write(Ppu.OAMDATA, _dataBus);
+
+                if (_dmaIndex == 0xFF)
+                    _inDma = false;
+
+                _dmaIndex++;
+            }
+        }
+
+        private void Fetch()
         {
             _logPc = PC;
 
@@ -334,7 +401,7 @@ namespace stasisEmulator.NesConsole
         private ushort _correctIndexedAddress = 0;
         private ushort _pointer = 0;
 
-        public void DoAddressing()
+        private void DoAddressing()
         {
             switch (_currentAddr)
             {
@@ -414,8 +481,8 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + X);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
-                            _logEffectiveAddress = _addressBus;
                             PC++;
 
                             if (_addressBus == _correctIndexedAddress)
@@ -425,7 +492,6 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -444,6 +510,7 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + X);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + X) & 0x00FF));
                             PC++;
 
@@ -451,7 +518,6 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -470,8 +536,8 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
-                            _logEffectiveAddress = _addressBus;
                             PC++;
 
                             if (_addressBus == _correctIndexedAddress)
@@ -481,7 +547,6 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -500,6 +565,7 @@ namespace stasisEmulator.NesConsole
                             _logByteCodeLength = 3;
                             _logArgument = _addressBus;
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
                             PC++;
 
@@ -507,7 +573,6 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -553,8 +618,8 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
-                            _logEffectiveAddress = _addressBus;
 
                             if (_addressBus == _correctIndexedAddress)
                                 _operationPhaseComplete = true;
@@ -563,7 +628,6 @@ namespace stasisEmulator.NesConsole
                         case 3:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -584,13 +648,13 @@ namespace stasisEmulator.NesConsole
                         case 2:
                             _addressBus |= (ushort)(Read((byte)(_pointer + 1)) << 8);
                             _correctIndexedAddress = (ushort)(_addressBus + Y);
+                            _logEffectiveAddress = _correctIndexedAddress;
                             _addressBus = (ushort)((_addressBus & 0xFF00) | ((_addressBus + Y) & 0x00FF));
 
                             break;
                         case 3:
                             Read(_addressBus);
                             _addressBus = _correctIndexedAddress;
-                            _logEffectiveAddress = _addressBus;
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -608,7 +672,7 @@ namespace stasisEmulator.NesConsole
             }
         }
 
-        public void DoInstructionCycle()
+        private void DoInstructionCycle()
         {
             switch (_currentInstr)
             {
@@ -1109,6 +1173,7 @@ namespace stasisEmulator.NesConsole
                             break;
                         case 2:
                             A = Read((ushort)(0x100 + S));
+                            SetZNFlags(A);
                             _operationPhaseComplete = true;
                             break;
                     }
@@ -1180,6 +1245,176 @@ namespace stasisEmulator.NesConsole
                 case Instr.NOP:
                     if (_currentAddr != Addr.Imp)
                         Read(_addressBus);
+                    _operationPhaseComplete = true;
+                    break;
+                //unofficial
+                case Instr.SLO:
+                    switch (_operationCycle)
+                    {
+                        case 1:
+                            Read(_addressBus);
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            Flag_Carry = _dataBus > 127;
+                            _dataBus <<= 1;
+                            break;
+                        case 3:
+                            Write(_addressBus, _dataBus);
+                            A |= _dataBus;
+                            SetZNFlags(A);
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.RLA:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            Read(_addressBus);
+                            break;
+                        case 1:
+                            Write(_addressBus, _dataBus);
+                            bool newCarry = _dataBus > 127;
+                            _dataBus <<= 1;
+                            if (Flag_Carry)
+                                _dataBus |= 1;
+                            Flag_Carry = newCarry;
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            A &= _dataBus;
+                            SetZNFlags(A);
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.SRE:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            Read(_addressBus);
+                            break;
+                        case 1:
+                            Write(_addressBus, _dataBus);
+                            Flag_Carry = (_dataBus & 1) != 0;
+                            _dataBus >>= 1;
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            A ^= _dataBus;
+                            SetZNFlags(A);
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.RRA:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            Read(_addressBus);
+                            break;
+                        case 1:
+                            Write(_addressBus, _dataBus);
+                            bool newCarry = (_dataBus & 1) != 0;
+                            _dataBus >>= 1;
+                            if (Flag_Carry)
+                                _dataBus |= 128;
+                            Flag_Carry = newCarry;
+                            SetZNFlags(_dataBus);
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            sum = A + _dataBus + (Flag_Carry ? 1 : 0);
+                            Flag_Carry = sum > 0xFF;
+                            Flag_Overflow = ((sum ^ A) & (sum ^ _dataBus) & 0x80) != 0;
+                            SetZNFlags((byte)sum);
+                            A = (byte)sum;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.SAX:
+                    Write(_addressBus, (byte)(A & X));
+                    _operationPhaseComplete = true;
+                    break;
+                case Instr.LAX:
+                    A = Read(_addressBus);
+                    X = A;
+                    SetZNFlags(X);
+                    _operationPhaseComplete = true;
+                    break;
+                case Instr.DCP:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            Read(_addressBus);
+                            break;
+                        case 1:
+                            Write(_addressBus, _dataBus);
+                            _dataBus--;
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            Flag_Carry = A >= _dataBus;
+                            Flag_Zero = A == _dataBus;
+                            Flag_Negative = (byte)(A - _dataBus) > 127;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.ISC:
+                    switch (_operationCycle)
+                    {
+                        case 0:
+                            Read(_addressBus);
+                            break;
+                        case 1:
+                            Write(_addressBus, _dataBus);
+                            _dataBus++;
+                            break;
+                        case 2:
+                            Write(_addressBus, _dataBus);
+                            difference = A - _dataBus - (Flag_Carry ? 0 : 1);
+                            Flag_Carry = !(difference < 0);
+                            Flag_Overflow = ((difference ^ A) & (difference ^ (~_dataBus)) & 0x80) != 0;
+                            SetZNFlags((byte)difference);
+                            A = (byte)difference;
+                            _operationPhaseComplete = true;
+                            break;
+                    }
+                    break;
+                case Instr.ANC:
+                    A &= Read(_addressBus);
+                    SetZNFlags(A);
+                    Flag_Carry = Flag_Negative;
+                    _operationPhaseComplete = true;
+                    break;
+                case Instr.ASR:
+                    A &= Read(_addressBus);
+                    Flag_Carry = (A & 1) != 0;
+                    A >>= 1;
+                    SetZNFlags(A);
+                    _operationPhaseComplete = true;
+                    break;
+                case Instr.ARR:
+                    A &= Read(_addressBus);
+                    A >>= 1;
+                    if (Flag_Carry)
+                        A |= 128;
+                    SetZNFlags(A);
+                    Flag_Carry = (A & 0x40) != 0;
+                    Flag_Overflow = ((A & 0x40) != 0) ^ ((A & 0x20) != 0);
+                    _operationPhaseComplete = true;
+                    break;
+                case Instr.AXS:
+                    Read(_addressBus);
+                    byte and = (byte)(A & X);
+                    difference = (byte)(and - _dataBus);
+                    X = (byte)difference;
+                    Flag_Carry = and >= _dataBus;
+                    Flag_Zero = and == _dataBus;
+                    Flag_Negative = (byte)(and - _dataBus) > 127;
                     _operationPhaseComplete = true;
                     break;
                 case Instr.HLT:

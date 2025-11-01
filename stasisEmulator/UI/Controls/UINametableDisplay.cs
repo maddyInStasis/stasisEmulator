@@ -19,6 +19,8 @@ namespace stasisEmulator.UI.Controls
         private const int PixelWidth = 8 * 32 * 2;
         private const int PixelHeight = 8 * 30 * 2;
 
+        private readonly float _scrollDarkenAmount = 0.333f;
+
         private RenderTarget2D _nametableRenderTarget;
         private readonly Color[] _colors = new Color[PixelWidth * PixelHeight];
         private RenderTarget2D _outputRenderTarget;
@@ -32,8 +34,13 @@ namespace stasisEmulator.UI.Controls
             ChildrenLocked = true;
         }
 
+        //TODO: optimize me! visibly lags emulator screen when nametable viewer allowed to render (figure out how to profile this stuff)
+        //(also maybe allow comparing previous results with a percentage for silly dopamine hits)
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
+            if (Bounds.Width == 0 || Bounds.Height == 0)
+                return;
+
             var graphics = spriteBatch.GraphicsDevice;
             _nametableRenderTarget ??= new(graphics, PixelWidth, PixelHeight);
             graphics.SetRenderTarget(_nametableRenderTarget);
@@ -63,6 +70,16 @@ namespace stasisEmulator.UI.Controls
             {
                 _colors[x + y * _nametableRenderTarget.Width] = color;
             }
+
+            ushort t = Nes.Ppu.t;
+            //yyyNNYYYYYXXXXX
+            int xScrollLeft = ((t & 0b10000000000) >> 2) | ((t & 0b11111) << 3) | Nes.Ppu.x;
+            int yScrollTop = ((t & 0b100000000000) >> 3) | ((t & 0b1111100000) >> 2) | ((t & 0b111000000000000) >> 9);
+            int XScrollRight = (xScrollLeft + 255) % 512;
+            int yScrollBottom = (yScrollTop + 239) % 480;
+
+            bool xWrap = xScrollLeft > XScrollRight;
+            bool yWrap = yScrollTop > yScrollBottom;
 
             for (int table = 0; table < 4; table++)
             {
@@ -94,8 +111,22 @@ namespace stasisEmulator.UI.Controls
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;
                                 paletteIndex += ((highByte >> (7 - x)) & 1) * 2;
-                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0]];
-                                SetPixel(x + tileX * 8 + (table & 1) * PixelWidth / 2, y + tileY * 8 + (table >> 1) * PixelHeight / 2, color);
+                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0] & 0b111111];
+
+                                int drawX = x + tileX * 8 + (table & 1) * PixelWidth / 2;
+                                int drawY = y + tileY * 8 + (table >> 1) * PixelHeight / 2;
+
+                                bool inX = xWrap ? (drawX >= xScrollLeft) || (drawX <= XScrollRight) : (drawX >= xScrollLeft && drawX <= XScrollRight);
+                                bool inY = yWrap ? (drawY >= yScrollTop) || (drawY <= yScrollBottom) : (drawY >= yScrollTop && drawY <= yScrollBottom);
+
+                                if (!inX || !inY)
+                                {
+                                    color.R = (byte)(color.R * _scrollDarkenAmount);
+                                    color.G = (byte)(color.G * _scrollDarkenAmount);
+                                    color.B = (byte)(color.B * _scrollDarkenAmount);
+                                }
+
+                                SetPixel(drawX, drawY, color);
                             }
                         }
                     }
@@ -110,6 +141,10 @@ namespace stasisEmulator.UI.Controls
         protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             DrawBoundsRect(spriteBatch, BackgroundColor);
+
+            if (_outputRenderTarget == null)
+                return;
+
             spriteBatch.Draw(_outputRenderTarget, Bounds, Color.White);
 
             var blank = GetBlankTexture(spriteBatch);

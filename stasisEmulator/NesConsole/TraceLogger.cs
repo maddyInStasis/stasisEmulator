@@ -39,6 +39,7 @@ namespace stasisEmulator.NesConsole
             {
                 Count = Capacity;
                 _startIndex++;
+                _startIndex %= Capacity;
             }
             values[index] = value;
         }

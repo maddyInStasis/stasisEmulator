@@ -216,10 +216,33 @@ namespace stasisEmulator.UI.Controls
 
         protected int ComputedX { get; private set; }
         protected int ComputedY { get; private set; }
+        public bool AutoLayoutPosition { get; set; } = true;
+
         protected int ComputedWidth { get; set; }
         protected int ComputedHeight { get; set; }
 
         public Rectangle Bounds { get => new(ComputedX, ComputedY, ComputedWidth, ComputedHeight); }
+
+        public bool Visible { get; set; } = true;
+        public bool PropagatedVisibility
+        {
+            get
+            {
+                if (!Visible)
+                    return false;
+
+                var top = this;
+                while (top.Parent != null)
+                {
+                    top = top.Parent;
+
+                    if (top.Visible == false)
+                        return false;
+                }
+
+                return true;
+            }
+        }
 
         protected int ComputedMinimumWidth { get; set; }
         protected int ComputedMinimumHeight { get; set; }
@@ -757,6 +780,12 @@ namespace stasisEmulator.UI.Controls
 
             foreach (var child in _children)
             {
+                if (!child.AutoLayoutPosition)
+                {
+                    child.SolvePositionsDownTree();
+                    continue;
+                }
+
                 if (IsHorizontalFill)
                 {
                     int remainingCrossAxisSize = ComputedHeight - Padding.VerticalTotal - child.ComputedHeight;
@@ -802,8 +831,28 @@ namespace stasisEmulator.UI.Controls
                     }
                 }
 
+                SetChildrenPositions();
                 child.SolvePositionsDownTree();
             }
+        }
+
+        /// <summary>
+        /// Use this method to call SetPosition on contained child elements
+        /// </summary>
+        protected virtual void SetChildrenPositions() { }
+
+        /// <summary>
+        /// Sets the position of the element, can only be called when AutoLayoutPosition is false. 
+        /// Should be called in SetChildrenPositions in order to auto-layout contained children.
+        /// Used to create "floating" elements which are not part of the main layout.
+        /// </summary>
+        public void SetPosition(int x, int y)
+        {
+            if (AutoLayoutPosition)
+                throw new Exception($"Cannot manually set position when {nameof(AutoLayoutPosition)} is set to true.");
+
+            ComputedX = x;
+            ComputedY = y;
         }
 
         protected static Rectangle FitRectangle(Rectangle source, Rectangle container)
@@ -897,12 +946,18 @@ namespace stasisEmulator.UI.Controls
             spriteBatch.Begin();
             RenderOutput(spriteBatch);
             spriteBatch.End();
+            RenderOnTop(spriteBatch);
         }
 
         public void RenderContents(SpriteBatch spriteBatch)
         {
+            if (!Visible) return;
+
             foreach (var child in _children)
             {
+                if (!child.Visible)
+                    continue;
+
                 child.RenderContents(spriteBatch);
             }
 
@@ -911,11 +966,31 @@ namespace stasisEmulator.UI.Controls
 
         public void RenderOutput(SpriteBatch spriteBatch)
         {
+            if (!Visible) return;
+
             RenderElementOutput(spriteBatch);
 
             foreach (var child in _children)
             {
+                if (!child.Visible)
+                    continue;
+
                 child.RenderOutput(spriteBatch);
+            }
+        }
+
+        private void RenderOnTop(SpriteBatch spriteBatch)
+        {
+            if (!Visible) return;
+
+            RenderElementOnTop(spriteBatch);
+
+            foreach(var child in _children)
+            {
+                if (!child.Visible)
+                    continue;
+
+                child.RenderOnTop(spriteBatch);
             }
         }
 
@@ -930,5 +1005,11 @@ namespace stasisEmulator.UI.Controls
         /// </summary>
         /// <param name="spriteBatch"></param>
         protected virtual void RenderElementOutput(SpriteBatch spriteBatch) { }
+
+        /// <summary>
+        /// Used to output an element on top of the normal layout. Call the Render method of the element to output.
+        /// </summary>
+        /// <param name="spriteBatch"></param>
+        protected virtual void RenderElementOnTop(SpriteBatch spriteBatch) { }
     }
 }

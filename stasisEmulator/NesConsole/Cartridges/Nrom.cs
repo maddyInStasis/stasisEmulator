@@ -37,7 +37,7 @@ namespace stasisEmulator.NesConsole.Cartridges
         {
             if (address < 0x2000)
             {
-                if (ChrRam.Length > 0)
+                if (ChrRam != null && ChrRam.Length > 0)
                     ChrRam[address % ChrRam.Length] = value;
             }
         }

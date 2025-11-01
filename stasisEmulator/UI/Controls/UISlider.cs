@@ -166,7 +166,7 @@ namespace stasisEmulator.UI.Controls
             _thumbMouseComponent.UpdateAsRectangle(thumbRect);
             _mainMouseComponent.Update();
 
-            if (!Enabled)
+            if (!Enabled || !!PropagatedVisibility)
                 return;
 
             int boundsAxisSize = Horizontal ? ComputedWidth : ComputedHeight;

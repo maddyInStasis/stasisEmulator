@@ -46,9 +46,9 @@ namespace stasisEmulator.UI.Controls
         public Color PressColor { get; set; } = Color.Gray;
         public Color DisabledColor { get; set; } = Color.LightGray;
 
-        protected override void UpdateElementPreLayout(GameTime gameTime)
+        protected override void UpdateElementPostLayout(GameTime gameTime)
         {
-            if (!Enabled)
+            if (!Enabled || !PropagatedVisibility)
             {
                 _mouseComponent.IsElementPressed = false;
                 return;

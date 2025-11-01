@@ -55,7 +55,9 @@ namespace stasisEmulator.UI.Components
             ElementMouseJustDown = false;
             ElementMouseJustUp = false;
 
-            IsMouseHovered = IsMouseHoveredInRectangle(rect);
+            IsMouseHovered = !InputManager.HoverProcessed && IsMouseHoveredInRectangle(rect);
+            if (IsMouseHovered)
+                InputManager.ProcessHover();
 
             if (IsMouseHovered)
                 ScrollAmount = InputManager.ScrollWheelDelta;
@@ -64,7 +66,7 @@ namespace stasisEmulator.UI.Components
 
             NormalizedMousePosition = GetNormalizedMousePositionInRectangle(rect);
 
-            if (InputManager.MouseJustClicked && !InputManager.MouseClickProcessed && IsMouseHovered)
+            if (InputManager.MouseJustPressed && !InputManager.MouseClickProcessed && IsMouseHovered)
             {
                 OnElementMouseDown?.Invoke(this, EventArgs.Empty);
                 ElementMouseJustDown = true;

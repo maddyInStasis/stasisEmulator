@@ -20,6 +20,7 @@ namespace stasisEmulator.NesConsole
         }
 
         public readonly Cpu Cpu;
+        public readonly Apu Apu;
         public readonly Ppu Ppu;
 
         public Cartridge Cartridge { get; set; }
@@ -43,8 +44,10 @@ namespace stasisEmulator.NesConsole
         {
             Cpu = new(this);
             Ppu = new(this);
+            Apu = new(this);
             Cpu.Power();
             Ppu.Power();
+            Apu.Power();
         }
 
         public void RunFrame()
@@ -75,10 +78,18 @@ namespace stasisEmulator.NesConsole
             FrameCount++;
         }
 
+        public void Power()
+        {
+            Cpu.Power();
+            Ppu.Power();
+            Apu.Power();
+        }
+
         public void Reset()
         {
             Cpu.Reset();
             Ppu.Reset();
+            Apu.Reset();
         }
     }
 }
