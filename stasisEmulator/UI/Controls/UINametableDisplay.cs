@@ -35,6 +35,7 @@ namespace stasisEmulator.UI.Controls
         }
 
         //TODO: optimize me! visibly lags emulator screen when nametable viewer allowed to render (figure out how to profile this stuff)
+        //note: doesn't visibly lag anymore, but probably still a good idea
         //(also maybe allow comparing previous results with a percentage for silly dopamine hits)
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
@@ -89,7 +90,7 @@ namespace stasisEmulator.UI.Controls
                     {
                         ushort vramAddress = (ushort)(0x2000 + table * 0x400 + tileY * 32 + tileX);
                         byte tile = 0;
-                        Nes.Ppu.ReadNametable(vramAddress, ref tile);
+                        Nes.Ppu.ReadVram(vramAddress, ref tile);
 
                         int tileIndex = tile;
                         if (Nes.Ppu.BackgroundSecondPatternTable)
@@ -97,21 +98,21 @@ namespace stasisEmulator.UI.Controls
 
                         byte attributeOffset = (byte)((tileX >> 2) + (tileY >> 2) * 8);
                         byte attribute = 0;
-                        Nes.Ppu.ReadNametable((ushort)(0x400 * table + 0x23C0 + attributeOffset), ref attribute);
+                        Nes.Ppu.ReadVram((ushort)(0x400 * table + 0x23C0 + attributeOffset), ref attribute);
                         byte quadrant = (byte)(((tileX >> 1) & 1) + ((tileY >> 1) & 1) * 2);
                         byte palette = (byte)((attribute >> (quadrant * 2)) & 3);
 
                         for (int y = 0; y < 8; y++)
                         {
                             byte lowByte = 0;
-                            cart.ReadCartridgePpu((ushort)(y + tileIndex * 16), ref lowByte);
+                            cart.ReadPpu((ushort)(y + tileIndex * 16), ref lowByte);
                             byte highByte = 0;
-                            cart.ReadCartridgePpu((ushort)(8 + y + tileIndex * 16), ref highByte);
+                            cart.ReadPpu((ushort)(8 + y + tileIndex * 16), ref highByte);
                             for (int x = 0; x < 8; x++)
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;
                                 paletteIndex += ((highByte >> (7 - x)) & 1) * 2;
-                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0] & 0b111111];
+                                Color color = Nes.Ppu.PaletteRamColors[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0 & 0b111111];
 
                                 int drawX = x + tileX * 8 + (table & 1) * PixelWidth / 2;
                                 int drawY = y + tileY * 8 + (table >> 1) * PixelHeight / 2;

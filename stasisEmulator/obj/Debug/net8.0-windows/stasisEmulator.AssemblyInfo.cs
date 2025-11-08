@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("stasisEmulator")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a5732918e494bdbb6c7c78db7a49aa6571436038")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b2aaffb24a5a76b60a3263d9d93478ca54a2a881")]
 [assembly: System.Reflection.AssemblyProductAttribute("stasisEmulator")]
 [assembly: System.Reflection.AssemblyTitleAttribute("stasisEmulator")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

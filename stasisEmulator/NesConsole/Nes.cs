@@ -1,12 +1,9 @@
-﻿using Microsoft.Xna.Framework.Input;
-using stasisEmulator.NesConsole.Cartridges;
+﻿#undef COMPONENT_TIME
+
+using Microsoft.Xna.Framework.Input;
+using stasisEmulator.NesConsole.Mappers;
 using stasisEmulator.NesConsole.Input;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace stasisEmulator.NesConsole
 {
@@ -23,18 +20,33 @@ namespace stasisEmulator.NesConsole
         public readonly Apu Apu;
         public readonly Ppu Ppu;
 
-        public Cartridge Cartridge { get; set; }
+        public readonly Stopwatch CpuWatch = new();
+        public readonly Stopwatch PpuWatch = new();
+        public readonly Stopwatch ApuWatch = new();
+
+        private readonly Stopwatch FrameWatch = new();
+        public double FrameElapsedTime
+        {
+            get
+            {
+#if COMPONENT_TIME
+                return (CpuWatch.Elapsed + PpuWatch.Elapsed + ApuWatch.Elapsed).TotalMilliseconds;
+#else
+                return FrameWatch.Elapsed.TotalMilliseconds;
+#endif
+            }
+        }
+
+        public Mapper Cartridge { get; set; }
 
         public InputDevice Player1Controller { get; set; } = new StandardController();
         public InputDevice Player2Controller { get; set; }
 
-        private const int _masterClockSpeed = 236250000 / 11;
-        private const int _cpuCyclesPerSecond = _masterClockSpeed / 12;
-
-        public int FrameCount { get; private set; }
+        //warning: will overflow after 9 billion years
+        public ulong FrameCount { get; private set; }
         public bool Paused { get; set; }
 
-        private InputBindingContext<EmulatorControl> _emulatorControls = new(new(){
+        private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(new(){
             { EmulatorControl.Pause, new([Keys.Escape], null, null) },
             { EmulatorControl.Modifier, new([Keys.LeftControl], null, null) },
             { EmulatorControl.Reset, new([Keys.R], null, null) }
@@ -45,9 +57,7 @@ namespace stasisEmulator.NesConsole
             Cpu = new(this);
             Ppu = new(this);
             Apu = new(this);
-            Cpu.Power();
-            Ppu.Power();
-            Apu.Power();
+            Power();
         }
 
         public void RunFrame()
@@ -63,16 +73,47 @@ namespace stasisEmulator.NesConsole
             if (Paused)
                 return;
 
+            Apu.ApuPreFrame();
+            
+            FrameWatch.Start();
             while (!Ppu.FrameComplete)
             {
                 if (Paused)
                     break;
+                
+                //using directives because checking a bool every cycle would be pretty slow
+                //and i can't be bothered to make a second version of this loop
+                //idk why they keep force aligning to the left though, looks stupid
+#if COMPONENT_TIME
+                PpuWatch.Start();
+#endif
 
                 Ppu.RunCycle();
                 Ppu.RunCycle();
                 Ppu.RunCycle();
+
+#if COMPONENT_TIME
+                PpuWatch.Stop();
+                CpuWatch.Start();
+#endif
                 Cpu.RunCycle();
+
+#if COMPONENT_TIME
+                CpuWatch.Stop();
+                ApuWatch.Start();
+#endif
+
+                Apu.CpuClock();
+                if (Cpu.CurrentCycleType == Cpu.CycleType.Put)
+                    Apu.RunCycle();
+
+#if COMPONENT_TIME
+                ApuWatch.Stop();
+#endif
             }
+            FrameWatch.Stop();
+
+            Apu.ApuPostFrame();
 
             Ppu.FrameComplete = false;
             FrameCount++;

@@ -71,9 +71,9 @@ namespace stasisEmulator.UI.Controls
                         for (int y = 0; y < 8;  y++)
                         {
                             byte lowByte = 0;
-                            cart.ReadCartridgePpu((ushort)(y + column * 16 + row * 256 + table * 4096), ref lowByte);
+                            cart.ReadPpu((ushort)(y + column * 16 + row * 256 + table * 4096), ref lowByte);
                             byte highByte = 0;
-                            cart.ReadCartridgePpu((ushort)(8 + y + column * 16 + row * 256 + table * 4096), ref highByte);
+                            cart.ReadPpu((ushort)(8 + y + column * 16 + row * 256 + table * 4096), ref highByte);
                             for (int x = 0; x < 8; x++)
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;

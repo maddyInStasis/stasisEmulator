@@ -217,6 +217,7 @@ namespace stasisEmulator.UI.Controls
         protected int ComputedX { get; private set; }
         protected int ComputedY { get; private set; }
         public bool AutoLayoutPosition { get; set; } = true;
+        public bool FillsAutoLayoutSpace { get; set; } = true;
 
         protected int ComputedWidth { get; set; }
         protected int ComputedHeight { get; set; }
@@ -283,18 +284,20 @@ namespace stasisEmulator.UI.Controls
         {
             if (ParentLocked)
                 throw new ArgumentException($"Could not set parent. {nameof(ParentLocked)} of child is true.");
+            if (Parent != null && Parent.ChildrenLocked)
+                throw new ArgumentException($"Could not set parent. {nameof(Parent.ChildrenLocked)} of parent is true.");
 
             //Detach node from the tree
             _parent?._children.Remove(this);
             _parent = null;
 
-            if (parent.ChildrenLocked)
+            if (parent != null && parent.ChildrenLocked)
                 throw new ArgumentException($"Could not set parent. {nameof(parent.ChildrenLocked)} of parent is true.");
 
             //Disallow circular dependencies
             if (parent == this)
                 throw new ArgumentException("Control cannot be its own parent.");
-            if (HasDescendant(parent))
+            if (parent != null && HasDescendant(parent))
                 throw new ArgumentException("Control cannot be its own ancestor. (New parent was either a child or descendant of this control.)");
 
             //Attach node to new parent
@@ -380,8 +383,13 @@ namespace stasisEmulator.UI.Controls
             int childrenWidth = 0;
             int childrenMinimumWidth = 0;
 
+            int spaceFillingChildrenCount = 0;
+
             foreach (var child in _children)
             {
+                if (!child.FillsAutoLayoutSpace)
+                    continue;
+
                 if (IsHorizontalFill)
                 {
                     childrenWidth += child.ComputedWidth;
@@ -392,12 +400,14 @@ namespace stasisEmulator.UI.Controls
                     childrenWidth = Math.Max(childrenWidth, child.ComputedWidth);
                     childrenMinimumWidth = Math.Max(childrenMinimumWidth, child.ComputedMinimumWidth);
                 }
+
+                spaceFillingChildrenCount++;
             }
 
             if (IsHorizontalFill)
             {
-                childrenWidth += (_children.Count - 1) * ChildMargin;
-                childrenMinimumWidth += (_children.Count - 1) * ChildMargin;
+                childrenWidth += (spaceFillingChildrenCount - 1) * ChildMargin;
+                childrenMinimumWidth += (spaceFillingChildrenCount - 1) * ChildMargin;
             }
 
             ComputedWidth = Math.Max(ComputedWidth, childrenWidth);
@@ -430,22 +440,26 @@ namespace stasisEmulator.UI.Controls
                 else
                     child.ComputedHeight = value;
             }
-            int GetSizeConstraint(UIControl child)
+            int GetRelevantSizeConstraint(UIControl child)
+            {
+                return GetSizeConstraint(child, grow);
+            }
+            int GetSizeConstraint(UIControl child, bool max)
             {
                 if (horizontal)
                 {
-                    if (grow)
-                        return child.Width.Max;
+                    if (max)
+                        return child.ComputedMaximumWidth;
                     else
                         return child.ComputedMinimumWidth;
                 }
                 else
                 {
-                    if (grow)
-                        return child.Height.Max;
+                    if (max)
+                        return child.ComputedMaximumHeight;
                     else
                         return child.ComputedMinimumHeight;
-                }    
+                }
             }
 
             bool IsSizable(UIControl child)
@@ -470,8 +484,33 @@ namespace stasisEmulator.UI.Controls
             List<UIControl> sizableElements = [];
             foreach (var child in _children)
             {
-                if (IsSizable(child) && (remainingSize < 0 || ((horizontal ? child.Width.Type : child.Height.Type) == UISizeType.Grow)))
-                    sizableElements.Add(child);
+                if (IsSizable(child))
+                {
+                    UISizeType growShrinkSizeType = (horizontal ? child.Width : child.Height).Type;
+
+                    if (child.FillsAutoLayoutSpace)
+                    {
+                        if (remainingSize < 0 || growShrinkSizeType == UISizeType.Grow)
+                            sizableElements.Add(child);
+                    }
+                    else
+                    {
+                        int sizeConstraint = GetSizeConstraint(child, growShrinkSizeType == UISizeType.Grow);
+                        int currentSize = GetSize(child);
+                        int maxSize = Math.Min(sizeConstraint, GetSize(this));
+
+                        if (growShrinkSizeType == UISizeType.Grow)
+                        {
+                            if (currentSize < maxSize)
+                                SetSize(child, maxSize);
+                        }
+                        else
+                        {
+                            if (currentSize > maxSize)
+                                SetSize(child, maxSize);
+                        }
+                    }
+                }
             }
 
             while (remainingSize != 0 && sizableElements.Count > 0)
@@ -514,7 +553,7 @@ namespace stasisEmulator.UI.Controls
                     {
                         SetSize(child, childSize + sizeToAdd);
                         childSize = GetSize(child);
-                        int constraint = GetSizeConstraint(child);
+                        int constraint = GetRelevantSizeConstraint(child);
                         if (grow ? childSize > constraint : childSize < constraint)
                         {
                             SetSize(child, constraint);
@@ -539,6 +578,9 @@ namespace stasisEmulator.UI.Controls
             {
                 foreach (var child in _children)
                 {
+                    if (!child.FillsAutoLayoutSpace)
+                        continue;
+
                     remainingWidth -= child.ComputedWidth;
                 }
                 remainingWidth -= (_children.Count - 1) * ChildMargin;
@@ -676,8 +718,13 @@ namespace stasisEmulator.UI.Controls
             int childrenHeight = 0;
             int childrenMinimumHeight = 0;
 
+            int spaceFillingChildCount = 0;
+
             foreach (var child in _children)
             {
+                if (!child.FillsAutoLayoutSpace)
+                    continue;
+
                 if (!IsHorizontalFill)
                 {
                     childrenHeight += child.ComputedHeight;
@@ -688,12 +735,14 @@ namespace stasisEmulator.UI.Controls
                     childrenHeight = Math.Max(childrenHeight, child.ComputedHeight);
                     childrenMinimumHeight = Math.Max(childrenMinimumHeight, child.ComputedMinimumHeight);
                 }
+
+                spaceFillingChildCount++;
             }
 
             if (!IsHorizontalFill)
             {
-                childrenHeight += (_children.Count - 1) * ChildMargin;
-                childrenMinimumHeight += (_children.Count - 1) * ChildMargin;
+                childrenHeight += (spaceFillingChildCount - 1) * ChildMargin;
+                childrenMinimumHeight += (spaceFillingChildCount - 1) * ChildMargin;
             }
 
             ComputedHeight = Math.Max(ComputedHeight, childrenHeight);
@@ -717,6 +766,9 @@ namespace stasisEmulator.UI.Controls
             {
                 foreach (var child in _children)
                 {
+                    if (!child.FillsAutoLayoutSpace)
+                        continue;
+
                     remainingHeight -= child.ComputedHeight;
                 }
                 remainingHeight -= (_children.Count - 1) * ChildMargin;
@@ -744,14 +796,20 @@ namespace stasisEmulator.UI.Controls
         private void SolvePositionsDownTree()
         {
             int totalChildrenAxisSize = 0;
+            int spaceFillingChildCount = 0;
             foreach (var child in _children)
             {
+                if (!child.FillsAutoLayoutSpace)
+                    continue;
+
                 if (IsHorizontalFill)
                     totalChildrenAxisSize += child.ComputedWidth;
                 else
                     totalChildrenAxisSize += child.ComputedHeight;
+
+                spaceFillingChildCount++;
             }
-            totalChildrenAxisSize += ChildMargin * (_children.Count - 1);
+            totalChildrenAxisSize += ChildMargin * (spaceFillingChildCount - 1);
             int remainingAxisSize = (IsHorizontalFill ? (ComputedWidth - Padding.HorizontalTotal) : (ComputedHeight - Padding.VerticalTotal)) - totalChildrenAxisSize;
             
             int axisOffset = FillDirection switch
@@ -780,7 +838,7 @@ namespace stasisEmulator.UI.Controls
 
             foreach (var child in _children)
             {
-                if (!child.AutoLayoutPosition)
+                if (!child.AutoLayoutPosition || !child.FillsAutoLayoutSpace)
                 {
                     child.SolvePositionsDownTree();
                     continue;
@@ -943,7 +1001,7 @@ namespace stasisEmulator.UI.Controls
         public void Render(SpriteBatch spriteBatch)
         {
             RenderContents(spriteBatch);
-            spriteBatch.Begin();
+            spriteBatch.Begin(blendState: BlendState.AlphaBlend);
             RenderOutput(spriteBatch);
             spriteBatch.End();
             RenderOnTop(spriteBatch);

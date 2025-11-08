@@ -81,12 +81,13 @@ namespace stasisEmulator.NesConsole
         }
     }
 
-    public readonly struct Disassembly(Cpu.Instr instruction, Cpu.Addr addressingMode, ushort argument, ushort indirectAddress)
+    public readonly struct Disassembly(Cpu.Instr instruction, Cpu.Addr addressingMode, ushort argument, ushort indirectAddress, bool writeInstruction)
     {
         public readonly Cpu.Instr Instruction = instruction;
         public readonly Cpu.Addr AddressingMode = addressingMode;
         public readonly ushort Argument = argument;
         public readonly ushort EffectiveAddress = indirectAddress;
+        public readonly bool WriteInstruction = writeInstruction;
     }
 
     public readonly struct Registers(byte a, byte x, byte y, byte s, byte p)

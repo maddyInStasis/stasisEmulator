@@ -10,7 +10,7 @@ namespace stasisEmulator.UI.Controls
         //TODO: Create some consistent implementation of text
         //TODO: Allow text source to be dynamic, somehow (i guess i could just make a separate TextSource property which makes Text immutable when set)
         public string Text { get; set; } = string.Empty;
-        private string _finalText = string.Empty;
+        private string _wrappedText = string.Empty;
 
         public FontSystem Font { get; set; }
         
@@ -44,7 +44,7 @@ namespace stasisEmulator.UI.Controls
             var spriteFont = AssetManager.GetFont(Font, CorrectedFontSize);
             int availableWidth = ComputedWidth - Padding.HorizontalTotal;
 
-            _finalText = WrapText(spriteFont, Text, availableWidth);
+            _wrappedText = WrapText(spriteFont, Text, availableWidth);
         }
 
         protected override void CalculateContentHeight()
@@ -53,7 +53,7 @@ namespace stasisEmulator.UI.Controls
             if (spriteFont == null)
                 return;
 
-            ComputedHeight = (int)MeasureStringHeightCorrected(spriteFont, _finalText);
+            ComputedHeight = (int)MeasureStringHeightCorrected(spriteFont, _wrappedText);
             ComputedMinimumHeight = ComputedHeight;
         }
 
@@ -68,7 +68,7 @@ namespace stasisEmulator.UI.Controls
             int contentWidth = ComputedWidth - Padding.HorizontalTotal;
             int contentHeight = ComputedHeight - Padding.VerticalTotal;
 
-            DrawTextWithAlignment(spriteBatch, spriteFont, _finalText, new Vector2(ComputedX + Padding.Left, ComputedY + Padding.Top), TextColor,
+            DrawTextWithAlignment(spriteBatch, spriteFont, _wrappedText, new Vector2(ComputedX + Padding.Left, ComputedY + Padding.Top), TextColor,
                 HorizontalContentAlignment, VerticalContentAlignment, contentWidth, contentHeight);
         }
     }

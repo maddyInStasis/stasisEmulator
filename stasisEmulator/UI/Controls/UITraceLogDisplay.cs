@@ -58,7 +58,7 @@ namespace stasisEmulator.UI.Controls
         private static readonly Dictionary<TraceLoggerColumnType, int> _columnCharacterWidth = new(){
             { TraceLoggerColumnType.ProgramCounter, GetColumnString(0).Length },
             { TraceLoggerColumnType.ByteCode, GetColumnString(new ByteCode(0, 0, 0)).Length },
-            { TraceLoggerColumnType.Disassembly, GetColumnString(new Disassembly(Cpu.Instr.LDA, Cpu.Addr.Imm, 0, 0)).Length },
+            { TraceLoggerColumnType.Disassembly, GetColumnString(new Disassembly(Cpu.Instr.LDA, Cpu.Addr.Imm, 0, 0, false)).Length },
             { TraceLoggerColumnType.Registers, GetColumnString(new Registers()).Length },
             { TraceLoggerColumnType.CycleCount, GetColumnString((ulong)0).Length }
         };
@@ -200,7 +200,8 @@ namespace stasisEmulator.UI.Controls
             return name;
         }
 
-        private static readonly Dictionary<ushort, string> _ppuRegisterNames = new(){
+        private static readonly Dictionary<ushort, string> _ppuRegisterNames = new()
+        {
             {Ppu.PPUCTRL, "PPUCTRL"},
             {Ppu.PPUMASK, "PPUMASK"},
             {Ppu.PPUSTATUS, "PPUSTATUS"},
@@ -211,7 +212,12 @@ namespace stasisEmulator.UI.Controls
             {Ppu.PPUDATA, "PPUDATA"}
         };
 
-        private static string GetRegisterString(ushort address)
+        private static readonly Dictionary<ushort, string> _apuRegisterNames = new()
+        {
+            
+        };
+
+        private static string GetRegisterString(ushort address, bool writeInstruction)
         {
             string output = $"${address:X4}";
 
@@ -224,15 +230,27 @@ namespace stasisEmulator.UI.Controls
                 }
             }
 
+            //TODO: test read/write differentiation, see what Mesen calls them
             if (address >= 0x4000 && address < 0x4017)
             {
-                //TODO: clean up when more registers implemented
                 if (address == 0x4014)
-                    output = "OAMDMA";
+                    return "OAMDMA";
                 if (address == 0x4016)
-                    output = "ControllerPort1";
-                if (address == 0x4017)
-                    output = "ControllerPort2";
+                    return "ControllerPort1";
+                if (address == 0x4017 && !writeInstruction)
+                    return "ControllerPort2";
+                
+                if (address == 0x4015)
+                {
+                    if (writeInstruction)
+                        return "APUCONTROL";
+                    else
+                        return "APUSTATUS";
+                }
+
+                _apuRegisterNames.TryGetValue(address, out string apuReg);
+                if (apuReg != null)
+                    return apuReg;
             }
 
             return output;
@@ -242,6 +260,10 @@ namespace stasisEmulator.UI.Controls
         {
             ushort argument = disassembly.Argument;
             ushort effectiveAddr = disassembly.EffectiveAddress;
+            bool writeInstruction = disassembly.WriteInstruction;
+
+            string regString = GetRegisterString(argument, writeInstruction);
+            string effectiveRegString = GetRegisterString(effectiveAddr, writeInstruction);
 
             return disassembly.AddressingMode switch
             {
@@ -251,20 +273,20 @@ namespace stasisEmulator.UI.Controls
                 Cpu.Addr.Zero => $"${argument:X2}",
                 Cpu.Addr.ZeroX => $"${argument:X2},X [${effectiveAddr:X2}]",
                 Cpu.Addr.ZeroY => $"${argument:X2},Y [${effectiveAddr:X2}]",
-                Cpu.Addr.Abs => $"{GetRegisterString(argument)}",
-                Cpu.Addr.AbsX => $"${argument:X4},X [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.AbsXW => $"${argument:X4},X [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.AbsY => $"${argument:X4},Y [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.AbsYW => $"${argument:X4},Y [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.IndX => $"(${argument:X2},X) [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.IndY => $"(${argument:X2}),Y [{GetRegisterString(effectiveAddr)}]",
-                Cpu.Addr.IndYW => $"(${argument:X2}),Y [{GetRegisterString(effectiveAddr)}]",
+                Cpu.Addr.Abs => $"{regString}",
+                Cpu.Addr.AbsX => $"${argument:X4},X [{effectiveRegString}]",
+                Cpu.Addr.AbsXW => $"${argument:X4},X [{effectiveRegString}]",
+                Cpu.Addr.AbsY => $"${argument:X4},Y [{effectiveRegString}]",
+                Cpu.Addr.AbsYW => $"${argument:X4},Y [{effectiveRegString}]",
+                Cpu.Addr.IndX => $"(${argument:X2},X) [{effectiveRegString}]",
+                Cpu.Addr.IndY => $"(${argument:X2}),Y [{effectiveRegString}]",
+                Cpu.Addr.IndYW => $"(${argument:X2}),Y [{effectiveRegString}]",
                 Cpu.Addr.Rel => $"${argument:X4}",
                 Cpu.Addr.Other => disassembly.Instruction switch
                 {
-                    Cpu.Instr.JMP_abs => $"{GetRegisterString(argument)}",
-                    Cpu.Instr.JMP_ind => $"(${argument:X4}) [{GetRegisterString(effectiveAddr)}]",
-                    Cpu.Instr.JSR => $"{GetRegisterString(argument)}",
+                    Cpu.Instr.JMP_abs => $"{regString}",
+                    Cpu.Instr.JMP_ind => $"(${argument:X4}) [{effectiveRegString}]",
+                    Cpu.Instr.JSR => $"{regString}",
                     Cpu.Instr.RTI => "",
                     _ => "DisplayNotImpl"
                 },

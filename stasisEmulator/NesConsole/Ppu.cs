@@ -1,52 +1,60 @@
 ﻿using Microsoft.Xna.Framework;
-using System.Diagnostics;
+using System;
 
 namespace stasisEmulator.NesConsole
 {
     public class Ppu
     {
-        private ushort _v;
-        public ushort v { get => _v; set => _v = (ushort)(value & 0x7FFF); }
-        private ushort _t;
-        public ushort t { get => _t; set => _t = (ushort)(value & 0x7FFF); }
-        private ushort _x;
-        public ushort x { get => _x; set => _x = (ushort)(value & 7); }
-        public bool w { get; set; }
+        public ushort v;
+        public ushort t;
+        public ushort x;
+        public bool w;
 
-        public byte OamAddress { get; set; }
+        public byte OamAddress;
         private byte _secondaryOamAddress = 0;
         public byte SecondaryOamAddress { get => _secondaryOamAddress; set => _secondaryOamAddress = (byte)(value & 0x1F); }
-        public bool SecondaryOamFull { get; set; }
-
-        public readonly byte[] Vram = new byte[0x800];
+        public bool SecondaryOamFull;
+        
         public readonly byte[] PaletteRam = new byte[0x20];
         public readonly byte[] Oam = new byte[0x100];
         public readonly byte[] SecondaryOam = new byte[0x20];
 
-        public int Dot { get; private set; }
-        public int Scanline { get; private set; }
+        public int Dot;
+        public int Scanline;
 
-        public bool FrameComplete { get; set; }
+        private bool _oddFrame;
+
+        public bool FrameComplete;
 
         //PPUCTRL
-        public bool VramInc32 { get; private set; }
-        public bool SpriteSecondPatternTable { get; private set; }
-        public bool BackgroundSecondPatternTable { get; private set; }
-        public bool Use8x16Sprites { get; private set; }
-        public bool EnableNMI { get; private set; }
+        public bool VramInc32;
+        public bool SpriteSecondPatternTable;
+        public bool BackgroundSecondPatternTable;
+        public bool Use8x16Sprites;
+        public bool EnableNMI;
 
         //PPUMASK
-        public bool ShowLeftBG { get; private set; }
-        public bool ShowLeftSprites { get; private set; }
-        public bool RenderBG { get; private set; }
-        public bool RenderSprites { get; private set; }
+        public bool ShowLeftBG;
+        public bool ShowLeftSprites;
+        public bool RenderBG;
+        public bool RenderSprites;
 
         //PPUSTATUS
-        public bool VBlank { get; private set; }
-        public bool Sprite0Hit { get; private set; }
-        public bool SpriteOverflow { get; private set; }
+        public bool VBlank;
+        public bool Sprite0Hit;
+        public bool SpriteOverflow;
 
         public readonly Color[] Palette = new Color[64];
+
+        //save an array lookup when outputting colors by storing the colors directly
+        //(PaletteRamColors[i] is equivalent to Palette[PaletteRam[i]])
+        public readonly Color[] PaletteRamColors = new Color[64];
+
+        //is the current background color the same as when the frame began?
+        //if so, skip outputting transparent pixels, as the output buffer is filled with the bg color ahead of time
+        //limited testing, unclear if this is performant when the background barely shows through, or the bg color changes
+        //(the overall effect is small, regardless)
+        private bool _backgroundColorOkay = true;
 
         public const int PixelWidth = 256;
         public const int PixelHeight = 240;
@@ -77,8 +85,6 @@ namespace stasisEmulator.NesConsole
         private byte _ioBus;
         private byte _readBuffer;
 
-        private bool _nmiLevelDetector;
-
         private byte _spriteEvalTemp;
         private ushort _spriteAddressBus;
         private byte _spriteEvalTick;
@@ -86,6 +92,7 @@ namespace stasisEmulator.NesConsole
         private bool _nextScanlineContainsSprite0;
         private bool _spriteEvalOverflowed;
         private byte _secondaryOamSize;
+        private byte _currentSpriteCount;
 
         private readonly byte[] _shiftSpritePatternLow = new byte[8];
         private readonly byte[] _shiftSpritePatternHigh = new byte[8];
@@ -156,17 +163,14 @@ namespace stasisEmulator.NesConsole
             w = false;
             t = 0;
             _readBuffer = 0;
+            _oddFrame = false;
         }
 
         public void Read(ushort address, ref byte dataBus)
         {
-            if (address < 0x2000)
+            if (address < 0x3F00)
             {
-                _nes.Cartridge?.ReadCartridgePpu(address, ref dataBus);
-            }
-            else if (address < 0x3F00)
-            {
-                ReadNametable(address, ref dataBus);
+                _nes.Cartridge?.ReadPpu(address, ref dataBus);
             }
             else
             {
@@ -181,20 +185,25 @@ namespace stasisEmulator.NesConsole
 
         public void Write(ushort address, byte dataBus)
         {
-            if (address < 0x2000)
+            if (v < 0x3F00)
             {
-                _nes.Cartridge?.WriteCartridgePpu(address, dataBus);
-            }
-            else if (v < 0x3F00)
-            {
-                WriteNametable(address, dataBus);
+                _nes.Cartridge?.WritePpu(address, dataBus);
             }
             else
             {
                 if ((address & 3) == 0)
+                {
+                    if ((address & 0x0F) == 0)
+                        _backgroundColorOkay = false;
+
                     PaletteRam[address & 0x0F] = dataBus;
+                    PaletteRamColors[address & 0x0F] = Palette[dataBus & 63];
+                }
                 else
+                {
                     PaletteRam[address & 0x1F] = dataBus;
+                    PaletteRamColors[address & 0x1F] = Palette[dataBus & 63];
+                }
             }
         }
 
@@ -213,7 +222,7 @@ namespace stasisEmulator.NesConsole
                     w = false;
                     break;
                 case OAMDATA:
-                    if (Scanline < 240 && Dot >= 1 && Dot <= 64)
+                    if (Scanline < 240 && Dot >= 1 && Dot <= 64 && (RenderBG || RenderSprites))
                     {
                         _ioBus = 0xFF;
                         break;
@@ -226,19 +235,14 @@ namespace stasisEmulator.NesConsole
 
                     break;
                 case PPUDATA:
-                    if (v < 0x2000)
-                    {
-                        _ioBus = _readBuffer;
-                        Read(v, ref _readBuffer);
-                    }
-                    else if (v < 0x3F00)
+                    if (v < 0x3F00)
                     {
                         _ioBus = _readBuffer;
                         Read(v, ref _readBuffer);
                     }
                     else
                     {
-                        ReadNametable(v, ref _readBuffer);
+                        ReadVram(v, ref _readBuffer);
                         Read(v, ref _ioBus);
                     }
                     v += (ushort)(VramInc32 ? 32 : 1);
@@ -275,6 +279,11 @@ namespace stasisEmulator.NesConsole
                     OamAddress = _ioBus;
                     break;
                 case OAMDATA:
+                    if (Scanline < 240)
+                    {
+                        OamAddress += 4;
+                        break;
+                    }
                     Oam[OamAddress] = _ioBus;
                     OamAddress++;
                     break;
@@ -282,7 +291,7 @@ namespace stasisEmulator.NesConsole
                     if (!w)
                     {
                         t = (ushort)((t & (AllYMask | NametableMask)) | (_ioBus >> 3));
-                        x = _ioBus;
+                        x = (byte)(_ioBus & 7);
                     }
                     else
                     {
@@ -311,86 +320,41 @@ namespace stasisEmulator.NesConsole
             }
         }
 
-        public void WriteNametable(ushort address, byte value)
+        public byte ReadVram(ushort address, ref byte dataBus)
         {
-            var cart = _nes.Cartridge;
-            if (cart == null)
-                return;
-
-            (ushort addrOrIndex, bool useVram) = MapNametable(address);
-
-            if (useVram)
-                Vram[addrOrIndex] = value;
-            else
-                cart.WriteCartridgePpu(addrOrIndex, value);
-        }
-
-        public byte ReadNametable(ushort address, ref byte dataBus)
-        {
-            var cart = _nes.Cartridge;
-            if (cart == null)
-                return dataBus;
-
-            (ushort addrOrIndex, bool useVram) = MapNametable(address);
-
-            if (useVram)
-                dataBus = Vram[addrOrIndex];
-            else
-                cart.ReadCartridgePpu(addrOrIndex, ref dataBus);
-
+            _nes.Cartridge?.ReadPpu(address, ref dataBus);
             return dataBus;
-        }
-
-        public (ushort addrOrIndex, bool useVram) MapNametable(ushort address)
-        {
-            var cart = _nes.Cartridge;
-
-            ushort index = (ushort)(address & (0xFFFF >> 4));
-            ushort vramAddr = (ushort)(index | 0x2000);
-            byte nametable = (byte)((vramAddr >> 10) & 3);
-            (bool usePpuVram, bool useFirstPpuVramNametable) = cart.MapNameTable(nametable);
-
-            if (usePpuVram)
-            {
-                if (useFirstPpuVramNametable)
-                    return ((ushort)(index & 0x3FF), true);
-                else
-                    return ((ushort)((index & 0x3FF) + 0x400), true);
-            }
-            else
-            {
-                return (vramAddr, false);
-            }
         }
 
         public void RunCycle()
         {
-            if (Dot == 1 && Scanline == 241)
+            if (Dot == 1)
             {
-                VBlank = true;
-                FrameComplete = true;
-            }
-            if (Dot == 1 && Scanline == 261)
-            {
-                VBlank = false;
-                Sprite0Hit = false;
-                SpriteOverflow = false;
+                if (Scanline == 241)
+                {
+                    VBlank = true;
+                    FrameComplete = true;
+                    _oddFrame = !_oddFrame;
+                }
+                if (Scanline == 261)
+                {
+                    VBlank = false;
+                    Sprite0Hit = false;
+                    SpriteOverflow = false;
+                    _backgroundColorOkay = true;
+                    Array.Fill(OutputBuffer, PaletteRamColors[0]);
+                }
             }
 
-            bool prevNmiLevelDetector = _nmiLevelDetector;
-            _nmiLevelDetector = EnableNMI && VBlank;
-            if (!prevNmiLevelDetector && _nmiLevelDetector)
-            {
-                _nes.Cpu.DoNmi = true;
-            }
-
+            _nes.Cpu.NmiLine = EnableNMI && VBlank;
+            
             DoSpriteEvaluation();
             DoBgRead();
-            if (RenderBG || RenderSprites)
+            if (Dot <= 256 && Dot > 1)
             {
-                if (Dot > 1 && Dot <= 256)
+                if (RenderBG || RenderSprites)
                 {
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < _currentSpriteCount; i++)
                     {
                         if (_spriteXPosition[i] > 0)
                         {
@@ -428,10 +392,8 @@ namespace stasisEmulator.NesConsole
                 bool spritePriority = false;
                 if (RenderSprites && (Dot > 8 || ShowLeftSprites))
                 {
-                    for (int i = 0; i < 8; i++)
+                    for (int i = 0; i < _currentSpriteCount; i++)
                     {
-                        if (i >= (_secondaryOamSize / 4))
-                            break;
                         if (_spriteXPosition[i] > 0)
                             continue;
 
@@ -458,10 +420,11 @@ namespace stasisEmulator.NesConsole
                 byte palette = drawSprite ? spritePalette : bgPalette;
                 byte paletteIndex = drawSprite ? spritePaletteIndex : bgPaletteIndex;
 
-                byte colIndex = PaletteRam[palette * 4 + paletteIndex];
-                SetOutputPixel(Dot - 1, Scanline, Palette[colIndex & 63]);
+                //maybe instead of calculating the index based on the scanline and dot, we could just increment an index variable?
+                if (paletteIndex != 0 || !_backgroundColorOkay)
+                    OutputBuffer[Scanline * 256 + (Dot - 1)] = PaletteRamColors[(palette * 4 + paletteIndex) & 63];
             }
-
+        
             Dot++;
             if (Dot > 340)
             {
@@ -470,11 +433,9 @@ namespace stasisEmulator.NesConsole
                 if (Scanline > 261)
                     Scanline = 0;
             }
-        }
 
-        public void SetOutputPixel(int x, int y, Color color)
-        {
-            OutputBuffer[y * 256 + x] = color;
+            if (Dot == 0 && Scanline == 0 && !_oddFrame)
+                Dot++;
         }
 
         private void DoBgRead()
@@ -485,15 +446,14 @@ namespace stasisEmulator.NesConsole
             if (!RenderBG && !RenderSprites)
                 return;
 
-            if ((Dot > 0 && Dot < 257) || (Dot > 320 && Dot < 337))
+            if ((Dot < 257 && Dot > 0) || (Dot > 320 && Dot < 337))
             {
                 _shiftBgPatternLow <<= 1;
                 _shiftBgPatternHigh <<= 1;
                 _shiftBgAttributeLow <<= 1;
                 _shiftBgAttributeHigh <<= 1;
 
-                byte cycleTick = (byte)((Dot - 1) & 7);
-                switch (cycleTick)
+                switch ((Dot - 1) & 7)
                 {
                     case 0:
                         _shiftBgPatternLow = (ushort)((_shiftBgPatternLow & 0xFF00) | _fetchBgPatternLow);
@@ -548,20 +508,20 @@ namespace stasisEmulator.NesConsole
                         IncrementScrollX();
                         break;
                 }
-            }
 
-            if (Dot == 256)
-            {
-                IncrementScrollY();
-            }
-            if (Dot == 257)
-            {
-                ResetScrollX();
+                if (Dot == 256)
+                    IncrementScrollY();
+
+                return;
             }
             if (Dot >= 280 && Dot <= 304 && Scanline == 261)
             {
                 ResetScrollY();
+                return;
             }
+
+            if (Dot == 257)
+                ResetScrollX();
         }
 
         public void IncrementScrollX()
@@ -636,6 +596,7 @@ namespace stasisEmulator.NesConsole
                     _secondaryOamSize = SecondaryOamAddress;
                     if (SecondaryOamFull)
                         _secondaryOamSize = 0x20;
+                    _currentSpriteCount = (byte)(_secondaryOamSize / 4);
                     SecondaryOamAddress = 0;
                     _spriteEvalTick = 0;
                 }
