@@ -49,7 +49,9 @@ namespace stasisEmulator
             //path += @"\Roms\nes-test-roms-master\AccuracyCoin.nes";
             //path += @"\Roms\nes-test-roms-master\ppu_read_buffer\test_ppu_read_buffer.nes";
             //path += @"\Roms\Best NES Games\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
-            path += @"\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes";
+            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes";
+            //path += @"\Roms\Best NES Games\Tetris\Tetris (USA).nes";
+            path += @"\Roms\Best NES Games\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
 
             TryLoadRom(path);
 

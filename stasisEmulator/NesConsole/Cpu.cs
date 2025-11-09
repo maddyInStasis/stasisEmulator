@@ -716,7 +716,10 @@ namespace stasisEmulator.NesConsole
                         case 0:
                             Read(PC);
                             if (_interruptToRun == Interrupt.None)
+                            {
+                                _break = true;
                                 PC++;
+                            }
                             break;
                         case 1:
                             if (_interruptToRun == Interrupt.Reset)

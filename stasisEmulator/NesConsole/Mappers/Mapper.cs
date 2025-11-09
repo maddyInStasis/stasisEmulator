@@ -47,7 +47,14 @@ namespace stasisEmulator.NesConsole.Mappers
         protected byte[] Vram = new byte[0x1000];
 
         //based on mesen, thanks open source
+
+        /// <summary>
+        /// Should represent the smallest PRG bank size at or after address $8000
+        /// </summary>
         protected abstract ushort PrgPageSize { get; }
+        /// <summary>
+        /// Should represent the smallest CHR bank size.
+        /// </summary>
         protected abstract ushort ChrPageSize { get; }
 
         private NametableMirrorType _mirrorType;

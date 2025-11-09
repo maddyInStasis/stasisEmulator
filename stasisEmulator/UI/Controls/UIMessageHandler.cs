@@ -11,6 +11,7 @@ namespace stasisEmulator.UI.Controls
 {
     internal class UIMessageHandler : UIControl
     {
+        //TODO: add timer progress bar, close button, pause on hover
         public string Text { get; set; } = string.Empty;
         private string _wrappedText = string.Empty;
 

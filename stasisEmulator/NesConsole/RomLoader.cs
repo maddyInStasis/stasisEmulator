@@ -26,7 +26,7 @@ namespace stasisEmulator.NesConsole
         public RomFormatVersion Version;
 
         public bool VerticalMirror;
-        public bool HasPrgRam;
+        public bool HasBattery;
         public bool HasTrainer;
         public bool AltNametable;
         public ushort Mapper;
@@ -92,7 +92,7 @@ namespace stasisEmulator.NesConsole
             //byte 6
             byte flags6 = header[6];
             rom.VerticalMirror = (flags6 & 1) != 0;
-            rom.HasPrgRam = (flags6 & 2) != 0;
+            rom.HasBattery = (flags6 & 2) != 0;
             rom.HasTrainer = (flags6 & 4) != 0;
             rom.AltNametable = (flags6 & 8) != 0;
             rom.Mapper = (ushort)(flags6 >> 4);

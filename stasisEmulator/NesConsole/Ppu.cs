@@ -623,19 +623,27 @@ namespace stasisEmulator.NesConsole
                     case 4:
                         byte spriteTileIndex = _spriteTileIndex[secondaryOamSlot];
                         bool flipVert = (_spriteAttribute[secondaryOamSlot] & 0x80) != 0;
-                        ushort tileAddress;
-                        if (!Use8x16Sprites)
+                        byte row = (byte)(Scanline - _spriteYPosition[secondaryOamSlot]);
+
+                        ushort tileAddress = (ushort)(SpriteSecondPatternTable ? 0x1000 : 0);
+                        if (Use8x16Sprites)
                         {
-                            tileAddress = (ushort)(SpriteSecondPatternTable ? 0x1000 : 0);
-                            tileAddress += (ushort)(spriteTileIndex * 16);
-                        }
-                        else
-                        {
+                            //in 8x16 mode, bit 0 determines the pattern table
                             tileAddress = (ushort)((spriteTileIndex & 1) != 0 ? 0x1000 : 0);
-                            tileAddress += (ushort)(((spriteTileIndex & (0xFF ^ 1)) | (flipVert ? 1 : 0)) * 16);
+                            //clear bit 0, so spriteTileIndex represents the actual tile index, including bit 0
+                            spriteTileIndex &= 0xFE;
+                            //if row > 7, we're in the second tile, so increment the tile index
+                            if (row > 7)
+                                spriteTileIndex++;
+                            //if the sprite is vertically flipped, flip bit 1, effectively swapping the upper and lower tile
+                            if (flipVert)
+                                spriteTileIndex ^= 1;
                         }
 
-                        byte row = (byte)(Scanline - _spriteYPosition[secondaryOamSlot]);
+                        tileAddress += (ushort)(spriteTileIndex * 16);
+
+                        //AND the row with 7, so the row is now limited to the tile (only relevant with 8x16 sprites)
+                        row &= 7;
                         if (flipVert)
                             row = (byte)(7 - row);
 
