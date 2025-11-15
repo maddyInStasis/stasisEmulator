@@ -227,6 +227,15 @@ namespace stasisEmulator.NesConsole.Mappers
             byte startPage = (byte)(startAddress >> 8);
             byte pageCount = (byte)((endAddress + 1 - startAddress) >> 8);
 
+            if (sourceOffset < 0)
+                sourceOffset += memoryType switch
+                {
+                    PrgMemoryType.PrgRom => PrgRom.Length,
+                    PrgMemoryType.WorkRam => WorkRam.Length,
+                    PrgMemoryType.SaveRam => SaveRam.Length,
+                    _ => sourceOffset
+                };
+
             for (int i = 0; i < pageCount; i++)
             {
                 int index = i + startPage;
@@ -248,6 +257,15 @@ namespace stasisEmulator.NesConsole.Mappers
         {
             byte startPage = (byte)(startAddress >> 8);
             byte pageCount = (byte)((endAddress + 1 - startAddress) >> 8);
+
+            if (sourceOffset < 0)
+                sourceOffset += memoryType switch
+                {
+                    ChrMemoryType.Default => ChrRom.Length > 0 ? ChrRom.Length : ChrRam.Length,
+                    ChrMemoryType.ChrRom => ChrRom.Length,
+                    ChrMemoryType.ChrRam => ChrRam.Length,
+                    _ => sourceOffset
+                };
 
             for (int i = 0; i < pageCount; i++)
             {

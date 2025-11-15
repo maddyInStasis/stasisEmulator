@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework.Input;
+using stasisEmulator.Input;
 
 namespace stasisEmulator.NesConsole.Input
 {
@@ -16,16 +17,16 @@ namespace stasisEmulator.NesConsole.Input
             Right
         }
 
-        private readonly InputBindingContext<NesButton> _inputs = new(new()
+        private readonly InputBindingContext<NesButton> _inputs = new(bindings: new()
         {
-            { NesButton.A, new([Keys.S], null, null) },
-            { NesButton.B, new([Keys.A], null, null) },
-            { NesButton.Select, new([Keys.Q], null, null) },
-            { NesButton.Start, new([Keys.W], null, null) },
-            { NesButton.Up, new([Keys.Up], null, null) },
-            { NesButton.Down, new([Keys.Down], null, null) },
-            { NesButton.Left, new([Keys.Left], null, null) },
-            { NesButton.Right, new([Keys.Right], null, null) }
+            { NesButton.A, new([Keys.S]) },
+            { NesButton.B, new([Keys.A]) },
+            { NesButton.Select, new([Keys.Q]) },
+            { NesButton.Start, new([Keys.W]) },
+            { NesButton.Up, new([Keys.Up]) },
+            { NesButton.Down, new([Keys.Down]) },
+            { NesButton.Left, new([Keys.Left]) },
+            { NesButton.Right, new([Keys.Right]) }
         });
 
         bool _strobe = false;

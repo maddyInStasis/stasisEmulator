@@ -100,6 +100,13 @@ namespace stasisEmulator.UI.Controls
         Center,
         Bottom
     }
+
+    public enum BorderType
+    {
+        Inside,
+        Center,
+        Outside
+    }
     
     /// <summary>
     /// The base class for GUI elements in a heirarchy structure.
@@ -199,6 +206,9 @@ namespace stasisEmulator.UI.Controls
         public UIControl Parent { get => _parent; set => SetParent(value); }
         private UIControl _parent;
 
+        public UIWindow Window { get => _window; set => SetWindow(value); }
+        private UIWindow _window;
+
         /// <summary>
         /// When <c>true</c>, prevent this control from having its parent set.
         /// <para>Used for controls which should always be the root, such as such as UIWindow, or who's parent should not be changed, 
@@ -223,6 +233,8 @@ namespace stasisEmulator.UI.Controls
         protected int ComputedHeight { get; set; }
 
         public Rectangle Bounds { get => new(ComputedX, ComputedY, ComputedWidth, ComputedHeight); }
+        public Point Position { get => new(ComputedX, ComputedY); }
+        public Point Size { get => new(ComputedWidth, ComputedHeight); }
 
         public bool Visible { get; set; } = true;
         public bool PropagatedVisibility
@@ -254,6 +266,8 @@ namespace stasisEmulator.UI.Controls
 
         private static readonly List<char> TextSeparators = [' '];
 
+        private bool _isInitialized = false;
+
         public UIControl() { }
         
         public UIControl(UIControl parent)
@@ -267,6 +281,20 @@ namespace stasisEmulator.UI.Controls
             {
                 child.Parent = this;
             }
+        }
+
+        /// <summary>
+        /// Is called when the control is first assigned to a window, which is not necessarily in the constructor.
+        /// </summary>
+        public virtual void InitializeControl() { }
+
+        public void WindowInitialized()
+        {
+            if (_isInitialized)
+                return;
+
+            _isInitialized = true;
+            InitializeControl();
         }
 
         public bool HasDescendant(UIControl control)
@@ -303,6 +331,51 @@ namespace stasisEmulator.UI.Controls
             //Attach node to new parent
             _parent = parent;
             _parent?._children.Add(this);
+
+            //set owner automatically
+            if (parent != null)
+            {
+                if (parent is UIWindow)
+                    SetWindowInternal(parent as UIWindow);
+                else
+                    SetWindowInternal(parent.Window);
+            }
+            else
+            {
+                SetWindowInternal(null);
+            }
+        }
+
+        public void AddChildren(List<UIControl> children)
+        {
+            foreach (var child in children)
+            {
+                child.SetParent(this);
+            }
+        }
+
+        private void SetWindowInternal(UIWindow window)
+        {
+            _window = window;
+            foreach (var child in _children)
+            {
+                child.SetWindowInternal(window);
+            }
+
+            if (window != null && !_isInitialized)
+            {
+                InitializeControl();
+                _isInitialized = true;
+            }
+        }
+
+        //can be used to set window manually, if uicontrol's parent is null
+        private void SetWindow(UIWindow window)
+        {
+            if (Parent != null)
+                throw new Exception($"Cannot set window of {nameof(UIControl)} which is not a top-level control with a null parent.");
+
+            SetWindowInternal(window);
         }
 
         public void Update(GameTime gameTime)
@@ -956,11 +1029,37 @@ namespace stasisEmulator.UI.Controls
             spriteBatch.Draw(GetBlankTexture(spriteBatch), rectangle, color);
         }
 
+        protected static void DrawBorder(SpriteBatch spriteBatch, Rectangle rectangle, int thickness, BorderType borderType, Color color)
+        {
+            var blank = GetBlankTexture(spriteBatch);
+
+            int outsetAmount = 0;
+
+            if (borderType == BorderType.Outside)
+                outsetAmount = thickness;
+            if (borderType == BorderType.Center)
+                outsetAmount = thickness / 2;
+
+            rectangle = new(rectangle.X - outsetAmount, rectangle.Y - outsetAmount, rectangle.Width + outsetAmount * 2, rectangle.Height + outsetAmount * 2);
+
+            spriteBatch.Draw(blank, new Rectangle(rectangle.Left, rectangle.Top, rectangle.Width, thickness), color);
+            spriteBatch.Draw(blank, new Rectangle(rectangle.Left, rectangle.Bottom - thickness, rectangle.Width, thickness), color);
+            //avoid overlap in case of transparency
+            spriteBatch.Draw(blank, new Rectangle(rectangle.Left, rectangle.Top + thickness, thickness, rectangle.Height - thickness * 2), color);
+            spriteBatch.Draw(blank, new Rectangle(rectangle.Right - thickness, rectangle.Top + thickness, thickness, rectangle.Height - thickness * 2), color);
+        }
+
         protected void DrawBoundsRect(SpriteBatch spriteBatch, Color color)
         {
             DrawRect(spriteBatch, Bounds, color);
         }
 
+        protected void DrawBoundsBorder(SpriteBatch spriteBatch, int thickness, BorderType borderType, Color color)
+        {
+            DrawBorder(spriteBatch, Bounds, thickness, borderType, color);
+        }
+
+        //why are there so many properties
         protected static void DrawTextWithAlignment(SpriteBatch spriteBatch, SpriteFontBase spriteFont, string text, Vector2 position, Color color, 
             HorizontalAlignment horizontalAlignment, VerticalAlignment verticalAlignment, int contentWidth, int contentHeight, float rotation = 0, 
             Vector2 origin = default, Vector2? scale = null, float layerDepth = 0, float characterSpacing = 0, float lineSpacing = 0, 
@@ -998,13 +1097,29 @@ namespace stasisEmulator.UI.Controls
             }
         }
 
-        public void Render(SpriteBatch spriteBatch)
+        public virtual void Render(SpriteBatch spriteBatch)
         {
             RenderContents(spriteBatch);
-            spriteBatch.Begin(blendState: BlendState.AlphaBlend);
+            spriteBatch.Begin();
             RenderOutput(spriteBatch);
             spriteBatch.End();
             RenderOnTop(spriteBatch);
+        }
+
+        public void TargetRender(SpriteBatch spriteBatch, RenderTarget2D renderTarget)
+        {
+            RenderContents(spriteBatch);
+
+            var graphics = spriteBatch.GraphicsDevice;
+            graphics.SetRenderTarget(renderTarget);
+            graphics.Clear(Color.White);
+
+            spriteBatch.Begin();
+            RenderOutput(spriteBatch);
+            spriteBatch.End();
+            RenderOnTop(spriteBatch);
+
+            graphics.SetRenderTarget(null);
         }
 
         public void RenderContents(SpriteBatch spriteBatch)

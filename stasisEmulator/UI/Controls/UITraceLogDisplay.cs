@@ -30,9 +30,10 @@ namespace stasisEmulator.UI.Controls
         public Color BackgroundColor { get; set; } = Color.White;
         public int BorderSize { get; set; } = 1;
         public Color BorderColor { get; set; } = Color.LightGray;
+        public Padding TextPadding { get; set; } = new(4, 2);
 
-        public Padding TextPadding = new(4, 2);
         public int AdvanceWidth { get => TextPadding.HorizontalTotal + BorderSize; }
+        public int AdvanceHeight { get => TextPadding.VerticalTotal + BorderSize; }
 
         public Color ScrollBarThumbIdleColor { get => _scrollBar.ThumbIdleColor; set => _scrollBar.ThumbIdleColor = value; }
         public Color ScrollBarThumbHoverColor { get => _scrollBar.ThumbHoverColor; set => _scrollBar.ThumbHoverColor = value; }
@@ -162,7 +163,7 @@ namespace stasisEmulator.UI.Controls
 
         private int GetRowHeight()
         {
-            return AdvanceWidth + (int)MeasureStringHeightCorrected(AssetManager.GetFont(Font, FontSize), "A");
+            return AdvanceHeight + (int)MeasureStringHeightCorrected(AssetManager.GetFont(Font, CorrectedFontSize), "A");
         }
 
         private int GetTotalHeight()
@@ -193,9 +194,6 @@ namespace stasisEmulator.UI.Controls
             }
 
             string name = Enum.GetName(instruction);
-
-            //if (name.Length > 3)
-            //    throw new Exception($"hey girly you forgor a special case :3 ({name})");
 
             return name;
         }
@@ -308,6 +306,9 @@ namespace stasisEmulator.UI.Controls
 
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
+            if (ComputedWidth <= 0 || ComputedHeight <= 0)
+                return;
+
             GraphicsDevice graphicsDevice = spriteBatch.GraphicsDevice;
             if (_renderTarget == null || _renderTarget.Bounds.Size != Bounds.Size)
                 _renderTarget = new(graphicsDevice, ComputedWidth, ComputedHeight);
@@ -331,7 +332,7 @@ namespace stasisEmulator.UI.Controls
                 foreach (var logType in _traceLogColumns)
                 {
                     string drawString = GetColumnString(traceLogRow, logType);
-                    spriteBatch.DrawString(spriteFont, drawString, new Vector2(offsetHori + BorderSize + TextPadding.Left, offsetVert + TextPadding.Top), TextColor);
+                    spriteBatch.DrawString(spriteFont, drawString, new Vector2(offsetHori + BorderSize + TextPadding.Left, offsetVert + BorderSize + TextPadding.Top), TextColor);
                     offsetHori += (int)GetWidthOfChars(_columnCharacterWidth[logType]) + AdvanceWidth;
                 }
 
@@ -359,6 +360,10 @@ namespace stasisEmulator.UI.Controls
         protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             DrawBoundsRect(spriteBatch, BackgroundColor);
+
+            if (_renderTarget == null)
+                return;
+
             spriteBatch.Draw(_renderTarget, new Rectangle(ComputedX, ComputedY, ComputedWidth, ComputedHeight), Color.White);
         }
     }

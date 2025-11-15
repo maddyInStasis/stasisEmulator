@@ -28,6 +28,24 @@ namespace stasisEmulator.NesConsole
         public int FrameCounter = 0;
         public bool FrameCounter5Step;
         public bool InterruptInhibit;
+
+        private bool _frameInterrupt = false;
+        public bool FrameInterruptFlag
+        {
+            get => _frameInterrupt;
+            set
+            {
+                if (_frameInterrupt == value)
+                    return;
+                _frameInterrupt = value;
+
+                if (value)
+                    _nes.Cpu.IrqLine++;
+                else
+                    _nes.Cpu.IrqLine--;
+            }
+        }
+
         private bool FrameInterruptSetThisCycle;
 
         private readonly Nes _nes;
@@ -111,11 +129,11 @@ namespace stasisEmulator.NesConsole
                 status |= (byte)(Pulse2LengthCounter.GateOutput() ? 2 : 0);
                 status |= (byte)(TriangleLengthCounter.GateOutput() ? 4 : 0);
                 status |= (byte)(NoiseLengthCounter.GateOutput() ? 8 : 0);
-                status |= (byte)(_nes.Cpu.IrqLine ? 0x40 : 0);
+                status |= (byte)(FrameInterruptFlag ? 0x40 : 0);
                 dataBus = (byte)((dataBus & 0x20) | (status & (0xFF ^ 0x20)));
 
                 if (!FrameInterruptSetThisCycle)
-                    _nes.Cpu.IrqLine = false;
+                    FrameInterruptFlag = false;
             }
             return dataBus;
         }
@@ -205,7 +223,7 @@ namespace stasisEmulator.NesConsole
                     FrameCounter5Step = (value & 0x80) != 0;
                     InterruptInhibit = (value & 0x40) != 0;
                     if (InterruptInhibit)
-                        _nes.Cpu.IrqLine = false;
+                        FrameInterruptFlag = false;
 
                     //TODO: this should happen "3 or 4 CPU cycles" later
                     FrameCounter = 0;
@@ -235,10 +253,10 @@ namespace stasisEmulator.NesConsole
             TriangleSequencer.Clock();
             if (FrameCounter == 14914 && !InterruptInhibit && !FrameCounter5Step)
             {
-                if (!_nes.Cpu.IrqLine)
+                if (!FrameInterruptFlag)
                     FrameInterruptSetThisCycle = true;
 
-                _nes.Cpu.IrqLine = true;
+                FrameInterruptFlag = true;
             }
         }
 
@@ -269,10 +287,10 @@ namespace stasisEmulator.NesConsole
                 FrameCounter = 0;
                 if (!InterruptInhibit)
                 {
-                    if (!_nes.Cpu.IrqLine)
+                    if (!FrameInterruptFlag)
                         FrameInterruptSetThisCycle = true;
 
-                    _nes.Cpu.IrqLine = true;
+                    FrameInterruptFlag = true;
                 }
             }
             if (FrameCounter == 18641)

@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using stasisEmulator.Input;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace stasisEmulator.UI.Controls
 {
@@ -15,6 +16,9 @@ namespace stasisEmulator.UI.Controls
         private const float _hoveredTimerThreshold = 0.5f;
 
         public string Text { get => _label.Text; set => _label.Text = value; }
+        public Color TextColor { get => _label.TextColor; set => _label.TextColor = value; }
+
+        public Color DropdownBackgroundColor { get => _dropDownContainer.BackgroundColor; set => _dropDownContainer.BackgroundColor = value; }
 
         protected int Depth { get; set; } = 0;
 
@@ -28,6 +32,8 @@ namespace stasisEmulator.UI.Controls
                 _dropDownContainer.Visible = value;
             }
         }
+
+        private bool _initOwner = true;
 
         private UIMenuItem MenuItemParent { get; set; } = null;
         private readonly List<UIMenuItem> MenuItemChildren = [];
@@ -124,6 +130,14 @@ namespace stasisEmulator.UI.Controls
             item.MenuItemParent = null;
             item.Depth = 0;
             item.Active = true;
+        }
+
+        protected override void UpdateElementPreLayout(GameTime gameTime)
+        {
+            if (_initOwner)
+                _dropDownContainer.Window = Window;
+
+            base.UpdateElementPreLayout(gameTime);
         }
 
         protected override void UpdateElementPostLayout(GameTime gameTime)

@@ -187,7 +187,7 @@ namespace stasisEmulator.NesConsole.Mappers
             else
             {
                 SelectPrgPage(0, PrgBank);
-                SelectPrgPage(1, 15);
+                SelectPrgPage(1, -1);
             }
         }
 

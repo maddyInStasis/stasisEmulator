@@ -148,7 +148,7 @@ namespace stasisEmulator.NesConsole
 
         private bool DoNmi;
 
-        public bool IrqLine;
+        public int IrqLine;
         private bool DoIrq;
 
         private enum Interrupt
@@ -204,6 +204,8 @@ namespace stasisEmulator.NesConsole
         private Addr _currentAddr;
 
         private bool _halt = false;
+
+        public bool PauseOnBrk { get; set; } = false;
         private bool _break = false;
 
         private bool _isReadCycle = false;
@@ -260,13 +262,9 @@ namespace stasisEmulator.NesConsole
             else if (address < 0x4000)
                 _nes.Ppu.ReadRegister(address, ref _dataBus);
             else if (address == 0x4016)
-            {
                 _nes.Player1Controller?.RegisterRead(ref _dataBus);
-            }
             else if (address == 0x4017)
-            {
                 _nes.Player2Controller?.RegisterRead(ref _dataBus);
-            }
             else if (address < 0x4018)
                 _nes.Apu.RegisterRead(address, ref _dataBus);
 
@@ -274,6 +272,18 @@ namespace stasisEmulator.NesConsole
 
             return _dataBus;
         }
+        public byte DebugRead(ushort address)
+        {
+            byte value = (byte)(address >> 8);
+
+            if (address < 0x2000)
+                value = Ram[address & (0x800 - 1)];
+            else if (address >= 0x4020 && _nes.Cartridge != null)
+                value = _nes.Cartridge.DebugReadCpu(address);
+
+            return value;
+        }
+
         private void Write(ushort address, byte value)
         {
             _dataBus = value;
@@ -717,7 +727,8 @@ namespace stasisEmulator.NesConsole
                             Read(PC);
                             if (_interruptToRun == Interrupt.None)
                             {
-                                _break = true;
+                                if (PauseOnBrk)
+                                    _break = true;
                                 PC++;
                             }
                             break;
@@ -782,6 +793,10 @@ namespace stasisEmulator.NesConsole
                             };
 
                             PC |= (ushort)(Read(fetchAddr) << 8);
+
+                            DoNmi = false;
+                            DoIrq = false;
+                            _doReset = false;
 
                             _operationPhaseComplete = true;
                             break;
@@ -1631,7 +1646,7 @@ namespace stasisEmulator.NesConsole
             NmiPinsSignal = NmiLine;
 
             if (!DoIrq || canDisableIrq)
-                DoIrq = IrqLine && !Flag_InterruptDisable;
+                DoIrq = IrqLine > 0 && !Flag_InterruptDisable;
         }
     }
 }

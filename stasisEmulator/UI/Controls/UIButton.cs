@@ -14,18 +14,18 @@ namespace stasisEmulator.UI.Controls
 {
     public class UIButton : UIControl
     {
-        private readonly MouseComponent _mouseComponent;
+        private MouseComponent _mouseComponent;
 
-        public UIButton() { _mouseComponent = new(this); }
-        public UIButton(UIControl parent) : base(parent) { _mouseComponent = new(this); }
-        public UIButton(List<UIControl> children) : base(children) { _mouseComponent = new(this); }
+        public UIButton() { Init(); }
+        public UIButton(UIControl parent) : base(parent) { Init(); }
+        public UIButton(List<UIControl> children) : base(children) { Init(); }
 
         public bool Enabled { get; set; } = true;
 
         public bool MouseJustDown { get => _mouseComponent.ElementMouseJustDown; }
-        public event EventHandler MouseDown { add => _mouseComponent.OnElementMouseDown += value; remove => _mouseComponent.OnElementMouseDown -= value; }
+        public event EventHandler<MouseEventArgs> MouseDown { add => _mouseComponent.OnElementMouseDown += value; remove => _mouseComponent.OnElementMouseDown -= value; }
         public bool JustClicked { get => _mouseComponent.ElementMouseJustUp; }
-        public event EventHandler Click { add => _mouseComponent.OnElementMouseUp += value; remove => _mouseComponent.OnElementMouseUp -= value; }
+        public event EventHandler<MouseEventArgs> Click { add => _mouseComponent.OnElementMouseUp += value; remove => _mouseComponent.OnElementMouseUp -= value; }
 
         /// <summary>
         /// True when cursor is within the bounds of the button.
@@ -46,21 +46,45 @@ namespace stasisEmulator.UI.Controls
         public Color PressColor { get; set; } = Color.Gray;
         public Color DisabledColor { get; set; } = Color.LightGray;
 
+        public Color IdleBorderColor { get; set; } = Color.Black;
+        public Color HoverBorderColor { get; set; } = Color.Black;
+        public Color PressBorderColor { get; set; } = Color.Black;
+        public Color DisabledBorderColor { get; set; } = Color.Gray;
+
+        /// <summary>
+        /// When set, assigns all border colors to the same value
+        /// </summary>
+        public Color BorderColor
+        { 
+            set 
+            {
+                IdleBorderColor = value;
+                HoverBorderColor = value;
+                PressBorderColor = value;
+                DisabledBorderColor = value;
+            } 
+        }
+
+        public int BorderThickness { get; set; } = 1;
+        public BorderType BorderType { get; set; } = BorderType.Inside;
+
+        private void Init()
+        {
+            _mouseComponent = new(this);
+            Padding = new(8, 2);
+        }
+
         protected override void UpdateElementPostLayout(GameTime gameTime)
         {
-            if (!Enabled || !PropagatedVisibility)
-            {
-                _mouseComponent.IsElementPressed = false;
-                return;
-            }
-
-            _mouseComponent.Update();
+            _mouseComponent.Update(Enabled && PropagatedVisibility);
         }
 
         protected override void RenderElementOutput(SpriteBatch spriteBatch)
         {
             Color drawCol = MouseDownOnButton ? PressColor : (IsButtonHovered ? HoverColor : IdleColor);
-            DrawRect(spriteBatch, new(ComputedX, ComputedY, ComputedWidth, ComputedHeight), Enabled ? drawCol : DisabledColor);
+            DrawRect(spriteBatch, Bounds, Enabled ? drawCol : DisabledColor);
+            Color borderCol = MouseDownOnButton ? PressBorderColor : (IsButtonHovered ? HoverBorderColor : IdleBorderColor);
+            DrawBorder(spriteBatch, Bounds, BorderThickness, BorderType, Enabled ? borderCol : DisabledBorderColor);
         }
     }
 }

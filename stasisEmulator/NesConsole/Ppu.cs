@@ -72,6 +72,7 @@ namespace stasisEmulator.NesConsole
         public const ushort PPUDATA   = 0x2007;
 
         private readonly Nes _nes;
+        public bool _reset;
 
         private const ushort CoarseXMask = 0b11111;
         private const ushort CoarseYMask = 0b11111 << 5;
@@ -149,21 +150,15 @@ namespace stasisEmulator.NesConsole
 
         public void Reset()
         {
-            VramInc32 = false;
-            SpriteSecondPatternTable = false;
-            BackgroundSecondPatternTable = false;
-            Use8x16Sprites = false;
-            EnableNMI = false;
-
-            ShowLeftBG = false;
-            ShowLeftSprites = false;
-            RenderBG = false;
-            RenderSprites = false;
-
-            w = false;
+            WriteRegister(PPUCTRL, 0);
+            WriteRegister(PPUMASK, 0);
             t = 0;
+            x = 0;
+            w = false;
             _readBuffer = 0;
             _oddFrame = false;
+
+            _reset = true;
         }
 
         public void Read(ushort address, ref byte dataBus)
@@ -262,6 +257,9 @@ namespace stasisEmulator.NesConsole
             switch (register)
             {
                 case PPUCTRL:
+                    if (_reset)
+                        break;
+
                     t = (ushort)((t & (0xFFFF ^ NametableMask)) | ((_ioBus & 3) << 10));
                     VramInc32 = (_ioBus & 4) != 0;
                     SpriteSecondPatternTable = (_ioBus & 8) != 0;
@@ -270,6 +268,9 @@ namespace stasisEmulator.NesConsole
                     EnableNMI = (_ioBus & 128) != 0;
                     break;
                 case PPUMASK:
+                    if (_reset)
+                        break;
+
                     ShowLeftBG = (_ioBus & 2) != 0;
                     ShowLeftSprites = (_ioBus & 4) != 0;
                     RenderBG = (_ioBus & 8) != 0;
@@ -288,6 +289,9 @@ namespace stasisEmulator.NesConsole
                     OamAddress++;
                     break;
                 case PPUSCROLL:
+                    if (_reset)
+                        break;
+
                     if (!w)
                     {
                         t = (ushort)((t & (AllYMask | NametableMask)) | (_ioBus >> 3));
@@ -300,6 +304,9 @@ namespace stasisEmulator.NesConsole
                     w = !w;
                     break;
                 case PPUADDR:
+                    if (_reset)
+                        break;
+
                     if (!w)
                     {
                         //shift value into high byte, mask out uppper two bits, & with lower byte of t
@@ -341,6 +348,7 @@ namespace stasisEmulator.NesConsole
                     VBlank = false;
                     Sprite0Hit = false;
                     SpriteOverflow = false;
+                    _reset = false;
                     _backgroundColorOkay = true;
                     Array.Fill(OutputBuffer, PaletteRamColors[0]);
                 }

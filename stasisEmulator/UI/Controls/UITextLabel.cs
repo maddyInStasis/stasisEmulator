@@ -22,7 +22,9 @@ namespace stasisEmulator.UI.Controls
         public Color TextColor { get; set; } = Color.Black;
 
         public UITextLabel() : base() { Init(); }
+        public UITextLabel(string text) : base() { Text = text; Init(); }
         public UITextLabel(UIControl parent) : base(parent) { Init(); }
+        public UITextLabel(UIControl parent, string text) : base(parent) { Text = text; Init(); }
 
         private void Init()
         {

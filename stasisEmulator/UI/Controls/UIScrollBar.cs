@@ -173,6 +173,9 @@ namespace stasisEmulator.UI.Controls
             ButtonIdleColor = Color.LightGray;
             ButtonHoverColor = Color.Gray;
             ButtonPressColor = Color.DarkGray;
+            //TODO: temp, create property then remove
+            _buttonUp.BorderColor = Color.Transparent;
+            _buttonDown.BorderColor = Color.Transparent;
 
             FillDirection = Direction == ScrollBarDirection.Horizontal ? FillDirection.LeftToRight : FillDirection.TopToBottom;
 
@@ -235,7 +238,7 @@ namespace stasisEmulator.UI.Controls
             else
             {
                 _slider.Enabled = true;
-                _slider.ThumbSize = SliderSize.Relative((float)ContentVisibleSize / ContentTotalSize, min: Thickness / 2);
+                _slider.ThumbSize = SliderSize.Relative((float)ContentVisibleSize / ContentTotalSize, min: Thickness);
                 _slider.Range = new SliderRange(0, Math.Max(ContentTotalSize - ContentVisibleSize, 0));
             }
         }

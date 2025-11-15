@@ -4,16 +4,26 @@ using Microsoft.Xna.Framework.Input;
 using stasisEmulator.NesConsole.Mappers;
 using stasisEmulator.NesConsole.Input;
 using System.Diagnostics;
+using stasisEmulator.Input;
+using System;
 
 namespace stasisEmulator.NesConsole
 {
     public class Nes
     {
+        public enum AdvanceType
+        {
+            Instructions,
+            Cycles,
+            VBlank
+        }
+
         private enum EmulatorControl
         {
             Pause,
             Modifier,
-            Reset
+            Reset,
+            InstructionAdvance
         }
 
         public readonly Cpu Cpu;
@@ -44,13 +54,19 @@ namespace stasisEmulator.NesConsole
 
         //warning: will overflow after 9 billion years
         public ulong FrameCount { get; private set; }
-        public bool Paused { get; set; }
+        public bool Paused { get; set; } = false;
 
-        private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(new(){
-            { EmulatorControl.Pause, new([Keys.Escape], null, null) },
-            { EmulatorControl.Modifier, new([Keys.LeftControl], null, null) },
-            { EmulatorControl.Reset, new([Keys.R], null, null) }
-        });
+        private bool _advance = false;
+        private AdvanceType _advanceType;
+        private ulong _advanceTarget = 0;
+        private bool _prevVblank = false;
+
+        private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(bindings: new(){
+            { EmulatorControl.Pause, new([Keys.Escape]) },
+            { EmulatorControl.Modifier, new([Keys.LeftControl]) },
+            { EmulatorControl.Reset, new([Keys.R]) },
+            { EmulatorControl.InstructionAdvance, new([Keys.T])},
+        }, null);
 
         public Nes()
         {
@@ -65,12 +81,22 @@ namespace stasisEmulator.NesConsole
             _emulatorControls.UpdateInputStates();
 
             if (_emulatorControls.WasBindJustPressed(EmulatorControl.Pause))
-                Paused = !Paused;
+            {
+                if (_advance)
+                {
+                    _advance = false;
+                    Paused = true;
+                }
+                else
+                {
+                    Paused = !Paused;
+                }
+            }
 
             if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
                 Reset();
 
-            if (Paused)
+            if (Paused && !_advance)
                 return;
 
             Apu.ApuPreFrame();
@@ -78,7 +104,7 @@ namespace stasisEmulator.NesConsole
             FrameWatch.Start();
             while (!Ppu.FrameComplete)
             {
-                if (Paused)
+                if (Paused && !_advance)
                     break;
                 
                 //using directives because checking a bool every cycle would be pretty slow
@@ -110,6 +136,23 @@ namespace stasisEmulator.NesConsole
 #if COMPONENT_TIME
                 ApuWatch.Stop();
 #endif
+                if (_advance && _advanceType switch 
+                { 
+                    AdvanceType.Instructions => Cpu.InstructionCount,
+                    AdvanceType.Cycles => Cpu.CycleCount,
+                    AdvanceType.VBlank => 0,
+                    _ => throw new Exception($"Advance type not implemented: {_advanceType}")
+                } >= _advanceTarget)
+                {
+                    _advance = false;
+                    Paused = true;
+                }
+
+                if (_advanceType == AdvanceType.VBlank && !_prevVblank && Ppu.VBlank)
+                {
+                    _advance = false;
+                }
+                _prevVblank = Ppu.VBlank;
             }
             FrameWatch.Stop();
 
@@ -117,6 +160,20 @@ namespace stasisEmulator.NesConsole
 
             Ppu.FrameComplete = false;
             FrameCount++;
+        }
+
+        public void Advance(AdvanceType advanceType, ulong count = 0)
+        {
+            _advance = true;
+            _advanceType = advanceType;
+            _advanceTarget = advanceType switch
+            {
+                AdvanceType.Instructions => Cpu.InstructionCount + count,
+                AdvanceType.Cycles => Cpu.CycleCount + count,
+                AdvanceType.VBlank => ulong.MaxValue,
+                _ => throw new Exception($"Advance type not implemented: {advanceType}")
+            };
+            _prevVblank = Ppu.VBlank;
         }
 
         public void Power()

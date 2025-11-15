@@ -151,7 +151,7 @@ namespace stasisEmulator.UI.Controls
 
         private float GetValueFromMousePos(Rectangle trackRect)
         {
-            var mousePos = MouseComponent.GetNormalizedMousePositionInRectangle(trackRect);
+            var mousePos = _mainMouseComponent.GetNormalizedMousePositionInRectangle(trackRect);
             float newValue = Horizontal ? mousePos.X : mousePos.Y;
             if (Inverted)
                 newValue = 1 - newValue;
@@ -163,10 +163,10 @@ namespace stasisEmulator.UI.Controls
         protected override void UpdateElementPostLayout(GameTime gameTime)
         {
             Rectangle thumbRect = GetThumbRect();
-            _thumbMouseComponent.UpdateAsRectangle(thumbRect);
-            _mainMouseComponent.Update();
+            _thumbMouseComponent.UpdateAsRectangle(thumbRect, Enabled && PropagatedVisibility);
+            _mainMouseComponent.Update(Enabled && PropagatedVisibility);
 
-            if (!Enabled || !!PropagatedVisibility)
+            if (!Enabled || !PropagatedVisibility)
                 return;
 
             int boundsAxisSize = Horizontal ? ComputedWidth : ComputedHeight;

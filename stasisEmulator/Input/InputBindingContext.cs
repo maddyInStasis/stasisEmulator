@@ -1,8 +1,9 @@
 ﻿using Microsoft.Xna.Framework.Input;
+using stasisEmulator.UI.Controls;
 using System;
 using System.Collections.Generic;
 
-namespace stasisEmulator
+namespace stasisEmulator.Input
 {
     public class BindInputs
     {
@@ -15,7 +16,7 @@ namespace stasisEmulator
 
         }
 
-        public BindInputs(List<Keys> keyboardInputs, List<Buttons> gamePadInputs, List<Func<bool>> miscInputs)
+        public BindInputs(List<Keys> keyboardInputs = null, List<Buttons> gamePadInputs = null, List<Func<bool>> miscInputs = null)
         {
             KeyboardInputs = keyboardInputs ?? [];
             GamePadInputs = gamePadInputs ?? [];
@@ -58,19 +59,26 @@ namespace stasisEmulator
             }
         }
 
-        private KeyboardState _prevKeyboardState;
+        public UIWindow Window { get; private set; }
+        private readonly bool _useMainWindow;
+        public WindowKeyboardContext Keyboard { get => Window?.Keyboard; }
+
+        private WindowKeyboardState _prevKeyboardState;
         private GamePadState _prevGamePadState;
         private Dictionary<Func<bool>, bool> _prevFuncReturns = [];
 
         private readonly Dictionary<T, Binding> _bindings;
 
-        public InputBindingContext()
+        public InputBindingContext(UIWindow window)
         {
+            Window = window;
             _bindings = [];
         }
+        public InputBindingContext() : this(InputManager.MainWindow) { _useMainWindow = true; }
 
-        public InputBindingContext(Dictionary<T, BindInputs> bindings)
+        public InputBindingContext(Dictionary<T, BindInputs> bindings, UIWindow window)
         {
+            Window = window;
             _bindings = [];
 
             foreach (KeyValuePair<T, BindInputs> pair in bindings)
@@ -81,6 +89,7 @@ namespace stasisEmulator
                 _bindings[key] = new Binding(value);
             }
         }
+        public InputBindingContext(Dictionary<T, BindInputs> bindings) : this(bindings, InputManager.MainWindow) { _useMainWindow = true; }
 
         public void BindInput(T bind, BindInputs inputs)
         {
@@ -204,7 +213,13 @@ namespace stasisEmulator
 
         public void UpdateInputStates()
         {
-            KeyboardState keyboardState = Keyboard.GetState();
+            if (_useMainWindow)
+                Window = InputManager.MainWindow;
+
+            WindowKeyboardState keyboardState = (_useMainWindow && Window == null) ? 
+                new([], WindowKeyboardContext.GetGlobalState().CapsLock) : 
+                Keyboard != null ? Keyboard.GetState() : WindowKeyboardContext.GetGlobalState();
+
             GamePadState gamePadState = GamePad.GetState(0);
 
             Dictionary<Func<bool>, bool> funcReturns = [];
