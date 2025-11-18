@@ -83,7 +83,7 @@ namespace stasisEmulator
             try
             {
                 var rom = RomLoader.LoadRom(path);
-                var mapper = MapperFactory.CreateMapper(rom);
+                var mapper = MapperFactory.CreateMapper(rom, _nes);
                 _nes.Cartridge = mapper;
                 _nes.Power();
             }

@@ -9,6 +9,8 @@ using System.Diagnostics;
 
 namespace stasisEmulator.UI.Controls
 {
+    //TODO: fix memory leak which occurs when window is resized/closed. possibly has to do with rendertargets?
+
     //this class represents two things:
     //a ui object which fills the window, creating a convenient window-sized container for ui elements (which was the initial purpose)
     //a way to create secondary windows, since the intended function to do this in monogame does not work. instead, this class uses

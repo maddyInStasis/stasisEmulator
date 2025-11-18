@@ -13,7 +13,7 @@ namespace stasisEmulator.NesConsole.Mappers
 
         private bool _chrRom8KiB; //TODO: implement
 
-        public Cnrom(Rom rom, bool chrRom8KiB) : base(rom)
+        public Cnrom(Rom rom, Nes nes, bool chrRom8KiB) : base(rom, nes)
         {
             _chrRom8KiB = chrRom8KiB;
             SelectPrgPage(0, 0);

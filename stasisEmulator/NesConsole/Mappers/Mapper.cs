@@ -1,9 +1,4 @@
-﻿using SharpDX;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
 
 namespace stasisEmulator.NesConsole.Mappers
 {
@@ -27,6 +22,15 @@ namespace stasisEmulator.NesConsole.Mappers
             Mapper
         }
 
+        protected enum MemoryAccessType
+        {
+            Default = -1,
+            None = 0,
+            Read = 1,
+            Write = 2,
+            ReadWrite = 3
+        }
+
         protected enum NametableMirrorType
         {
             Horizontal,
@@ -37,6 +41,7 @@ namespace stasisEmulator.NesConsole.Mappers
         }
 
         protected Rom Rom { get; set; }
+        protected readonly Nes _nes;
 
         protected readonly byte[] PrgRom;
         protected readonly byte[] WorkRam;
@@ -77,7 +82,10 @@ namespace stasisEmulator.NesConsole.Mappers
         private readonly PrgMemoryType[] _prgMemoryTypes = new PrgMemoryType[0x100];
         private readonly ChrMemoryType[] _chrMemoryTypes = new ChrMemoryType[0x100];
 
-        public Mapper(Rom rom)
+        private readonly MemoryAccessType[] _prgAccessTypes = new MemoryAccessType[0x100];
+        private readonly MemoryAccessType[] _chrAccessTypes = new MemoryAccessType[0x100];
+
+        public Mapper(Rom rom, Nes nes)
         {
             Rom = rom;
 
@@ -89,6 +97,7 @@ namespace stasisEmulator.NesConsole.Mappers
             ChrRam = new byte[rom.ChrRamSizeBytes];
 
             MirrorType = rom.VerticalMirror ? NametableMirrorType.Vertical : NametableMirrorType.Horizontal;
+            _nes = nes;
         }
 
         //somehow this is faster than just calculating the index on a per-mapper basis???
@@ -103,6 +112,10 @@ namespace stasisEmulator.NesConsole.Mappers
 
             byte page = (byte)(address >> 8);
             byte pageIndex = (byte)(address & 0xFF);
+
+            var access = _prgAccessTypes[page];
+            if ((access & MemoryAccessType.Read) == 0)
+                return;
 
             var type = _prgMemoryTypes[page];
 
@@ -182,6 +195,10 @@ namespace stasisEmulator.NesConsole.Mappers
             byte page = (byte)(address >> 8);
             byte pageIndex = (byte)(address & 0xFF);
 
+            var access = _prgAccessTypes[page];
+            if ((access & MemoryAccessType.Write) == 0)
+                return;
+
             var type = _prgMemoryTypes[page];
 
             if (type == PrgMemoryType.PrgRom)
@@ -214,15 +231,15 @@ namespace stasisEmulator.NesConsole.Mappers
         protected virtual void WriteRegisterCpu(ushort address, byte value) { }
         protected virtual void MapperWriteCpu(ushort address, byte value) { }
 
-        protected void SelectPrgPage(byte destinationPage, int sourcePage, PrgMemoryType memoryType = PrgMemoryType.PrgRom)
+        protected void SelectPrgPage(byte destinationPage, int sourcePage, PrgMemoryType memoryType = PrgMemoryType.PrgRom, MemoryAccessType memoryAccess = MemoryAccessType.Default)
         {
             ushort startAddress = (ushort)(0x8000 + (destinationPage * PrgPageSize));
             ushort endAddress = (ushort)(startAddress + PrgPageSize - 1);
             int sourceOffset = sourcePage * PrgPageSize;
 
-            SetPrgMemoryMapping(startAddress, endAddress, sourceOffset, memoryType);
+            SetPrgMemoryMapping(startAddress, endAddress, sourceOffset, memoryType, memoryAccess);
         }
-        protected void SetPrgMemoryMapping(ushort startAddress, ushort endAddress, int sourceOffset, PrgMemoryType memoryType)
+        protected void SetPrgMemoryMapping(ushort startAddress, ushort endAddress, int sourceOffset, PrgMemoryType memoryType, MemoryAccessType memoryAccess = MemoryAccessType.Default)
         {
             byte startPage = (byte)(startAddress >> 8);
             byte pageCount = (byte)((endAddress + 1 - startAddress) >> 8);
@@ -236,24 +253,36 @@ namespace stasisEmulator.NesConsole.Mappers
                     _ => sourceOffset
                 };
 
+            if (memoryAccess == MemoryAccessType.Default)
+                memoryAccess = memoryType switch
+                {
+                    PrgMemoryType.None => MemoryAccessType.None,
+                    PrgMemoryType.PrgRom => MemoryAccessType.Read,
+                    PrgMemoryType.WorkRam => MemoryAccessType.ReadWrite,
+                    PrgMemoryType.SaveRam => MemoryAccessType.ReadWrite,
+                    PrgMemoryType.Mapper => throw new Exception("Mapper-specific memory must explicitly define access type."),
+                    _ => throw new Exception($"Memory type {memoryType} does not have a specified default access type.")
+                };
+
             for (int i = 0; i < pageCount; i++)
             {
                 int index = i + startPage;
                 _prgMemoryTypes[index] = memoryType;
+                _prgAccessTypes[index] = memoryAccess;
                 _prgSourceOffsets[index] = (sourceOffset >> 8) + i;
             }
         }
 
-        protected void SelectChrPage(byte destinationPage, int sourcePage, ChrMemoryType memoryType = ChrMemoryType.Default)
+        protected void SelectChrPage(byte destinationPage, int sourcePage, ChrMemoryType memoryType = ChrMemoryType.Default, MemoryAccessType memoryAccess = MemoryAccessType.Default)
         {
             //TODO: chr page size may depend on the memory type
             ushort startAddress = (ushort)(destinationPage * ChrPageSize);
             ushort endAddress = (ushort)(startAddress + ChrPageSize - 1);
             int sourceOffset = sourcePage * ChrPageSize;
 
-            SetChrMemoryMapping(startAddress, endAddress, sourceOffset, memoryType);
+            SetChrMemoryMapping(startAddress, endAddress, sourceOffset, memoryType, memoryAccess);
         }
-        protected void SetChrMemoryMapping(ushort startAddress, ushort endAddress, int sourceOffset, ChrMemoryType memoryType)
+        protected void SetChrMemoryMapping(ushort startAddress, ushort endAddress, int sourceOffset, ChrMemoryType memoryType, MemoryAccessType memoryAccess = MemoryAccessType.Default)
         {
             byte startPage = (byte)(startAddress >> 8);
             byte pageCount = (byte)((endAddress + 1 - startAddress) >> 8);
@@ -267,10 +296,22 @@ namespace stasisEmulator.NesConsole.Mappers
                     _ => sourceOffset
                 };
 
+            if (memoryAccess == MemoryAccessType.Default)
+                memoryAccess = memoryType switch
+                {
+                    ChrMemoryType.Default => MemoryAccessType.Default,
+                    ChrMemoryType.ChrRom => MemoryAccessType.Read,
+                    ChrMemoryType.ChrRam => MemoryAccessType.ReadWrite,
+                    ChrMemoryType.Vram => MemoryAccessType.ReadWrite,
+                    ChrMemoryType.Mapper => throw new Exception("Mapper-specific memory must explicitly define access type."),
+                    _ => throw new Exception($"Memory type {memoryType} does not have a specified default access type.")
+                };
+
             for (int i = 0; i < pageCount; i++)
             {
                 int index = i + startPage;
                 _chrMemoryTypes[index] = memoryType;
+                _chrAccessTypes[index] = memoryAccess;
                 _chrSourceOffsets[index] = (sourceOffset >> 8) + i;
             }
         }
@@ -302,6 +343,13 @@ namespace stasisEmulator.NesConsole.Mappers
             byte pageIndex = (byte)(address & 0xFF);
 
             var type = _chrMemoryTypes[page];
+
+            var access = _chrAccessTypes[page];
+            if (access == MemoryAccessType.Default)
+                access = type == ChrMemoryType.ChrRom ? MemoryAccessType.Read : MemoryAccessType.ReadWrite;
+
+            if ((access & MemoryAccessType.Read) == 0)
+                return;
 
             if (type == ChrMemoryType.Mapper)
             {
@@ -371,6 +419,13 @@ namespace stasisEmulator.NesConsole.Mappers
 
             var type = _chrMemoryTypes[page];
 
+            var access = _chrAccessTypes[page];
+            if (access == MemoryAccessType.Default)
+                access = type == ChrMemoryType.ChrRom ? MemoryAccessType.Read : MemoryAccessType.ReadWrite;
+
+            if ((access & MemoryAccessType.Write) == 0)
+                return;
+
             if (type == ChrMemoryType.Mapper)
             {
                 MapperWritePpu(address, value);
@@ -402,6 +457,8 @@ namespace stasisEmulator.NesConsole.Mappers
             array[sourceIndex] = value;
         }
         protected virtual void MapperWritePpu(ushort address, byte value) { }
+
+        public virtual void OnPpuAddressUpdate(ushort address) { }
 
         private void MapNametable(byte index, byte source)
         {

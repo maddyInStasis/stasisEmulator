@@ -3,7 +3,7 @@ using stasisEmulator.Input;
 
 namespace stasisEmulator.NesConsole.Input
 {
-    public class StandardController : InputDevice
+    public class StandardController(Nes nes) : InputDevice(nes)
     {
         private enum NesButton
         {
@@ -39,15 +39,24 @@ namespace stasisEmulator.NesConsole.Input
                 FillShiftRegister();
         }
 
+        private ulong _lastCycle;
         public override void RegisterRead(ref byte dataBus)
         {
             if (_strobe)
                 FillShiftRegister();
 
+            if (_nes.Cpu.CycleCount == _lastCycle + 1)
+            {
+                _lastCycle = _nes.Cpu.CycleCount;
+                return;
+            }
+
             dataBus = (byte)((dataBus & (0xFF << 3)) | (_shiftRegister & 1));
 
             _shiftRegister >>= 1;
             _shiftRegister |= 0x80;
+
+            _lastCycle = _nes.Cpu.CycleCount; 
         }
 
         private void FillShiftRegister()

@@ -49,7 +49,7 @@ namespace stasisEmulator.NesConsole
 
         public Mapper Cartridge { get; set; }
 
-        public InputDevice Player1Controller { get; set; } = new StandardController();
+        public InputDevice Player1Controller { get; set; }
         public InputDevice Player2Controller { get; set; }
 
         //warning: will overflow after 9 billion years
@@ -73,6 +73,7 @@ namespace stasisEmulator.NesConsole
             Cpu = new(this);
             Ppu = new(this);
             Apu = new(this);
+            Player1Controller = new StandardController(this);
             Power();
         }
 
@@ -148,9 +149,10 @@ namespace stasisEmulator.NesConsole
                     Paused = true;
                 }
 
-                if (_advanceType == AdvanceType.VBlank && !_prevVblank && Ppu.VBlank)
+                if (_advance && _advanceType == AdvanceType.VBlank && !_prevVblank && Ppu.VBlank)
                 {
                     _advance = false;
+                    Paused = true;
                 }
                 _prevVblank = Ppu.VBlank;
             }

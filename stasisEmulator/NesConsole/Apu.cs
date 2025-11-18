@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework.Audio;
 using stasisEmulator.NesConsole.ApuComponents;
 using System;
+using System.Diagnostics;
 using System.Threading;
 
 namespace stasisEmulator.NesConsole
@@ -25,9 +26,26 @@ namespace stasisEmulator.NesConsole
         public readonly NoiseShiftRegister NoiseShiftRegister = new();
         public readonly LengthCounter NoiseLengthCounter = new();
 
+        public bool DmcEnable;
+        public bool DmcIrqEnabled;
+        public bool DmcLoop;
+        public ushort DmcPeriod;
+        public ushort DmcTimer;
+        public byte DmcOutputLevel;
+        public bool DmcSilence;
+        public byte DmcSampleBuffer;
+        public bool SampleBufferLoaded;
+        public byte DmcShiftRegister;
+        public byte DmcSampleBitsRemaining;
+        public ushort DmcSampleAddress;
+        public ushort DmcCurrentAddress;
+        public ushort DmcSampleLength;
+        public ushort DmcBytesRemaining;
+
         public int FrameCounter = 0;
         public bool FrameCounter5Step;
         public bool InterruptInhibit;
+        private int _frameCounterResetTimer = -1;
 
         private bool _frameInterrupt = false;
         public bool FrameInterruptFlag
@@ -38,6 +56,22 @@ namespace stasisEmulator.NesConsole
                 if (_frameInterrupt == value)
                     return;
                 _frameInterrupt = value;
+
+                if (value)
+                    _nes.Cpu.IrqLine++;
+                else
+                    _nes.Cpu.IrqLine--;
+            }
+        }
+        private bool _dmcInterruptFlag = false;
+        public bool DmcInterruptFlag
+        {
+            get => _dmcInterruptFlag;
+            set
+            {
+                if (_dmcInterruptFlag == value)
+                    return;
+                _dmcInterruptFlag = value;
 
                 if (value)
                     _nes.Cpu.IrqLine++;
@@ -104,8 +138,12 @@ namespace stasisEmulator.NesConsole
             NoiseShiftRegister.Power();
             NoiseLengthCounter.Power();
 
+            DmcPeriod = GetDmcPeriod(0);
+
             FrameCounter5Step = false;
             InterruptInhibit = false;
+
+            DmcOutputLevel = 0;
 
             Reset();
         }
@@ -129,7 +167,9 @@ namespace stasisEmulator.NesConsole
                 status |= (byte)(Pulse2LengthCounter.GateOutput() ? 2 : 0);
                 status |= (byte)(TriangleLengthCounter.GateOutput() ? 4 : 0);
                 status |= (byte)(NoiseLengthCounter.GateOutput() ? 8 : 0);
+                status |= (byte)(DmcBytesRemaining > 0 ? 16 : 0);
                 status |= (byte)(FrameInterruptFlag ? 0x40 : 0);
+                status |= (byte)(DmcInterruptFlag ? 0x80 : 0);
                 dataBus = (byte)((dataBus & 0x20) | (status & (0xFF ^ 0x20)));
 
                 if (!FrameInterruptSetThisCycle)
@@ -213,11 +253,36 @@ namespace stasisEmulator.NesConsole
                     NoiseLengthCounter.Load((byte)(value >> 3));
                     NoiseEnvelope.Start = true;
                     break;
+                case 0x4010:
+                    DmcPeriod = GetDmcPeriod((byte)(value & 0x0F));
+                    DmcLoop = (value & 0x40) != 0;
+                    DmcIrqEnabled = (value & 0x80) != 0;
+                    if (!DmcIrqEnabled)
+                        DmcInterruptFlag = false;
+                    break;
+                case 0x4011:
+                    DmcOutputLevel = (byte)(value & 0x7F);
+                    break;
+                case 0x4012:
+                    DmcSampleAddress = (ushort)(0xC000 | (value << 6));
+                    DmcCurrentAddress = DmcSampleAddress;
+                    break;
+                case 0x4013:
+                    DmcSampleLength = (ushort)((value << 4) | 1);
+                    break;
                 case 0x4015:
                     Pulse1LengthCounter.Enabled = (value & 1) != 0;
                     Pulse2LengthCounter.Enabled = (value & 2) != 0;
                     TriangleLengthCounter.Enabled = (value & 4) != 0;
                     NoiseLengthCounter.Enabled = (value & 8) != 0;
+                    DmcEnable = (value & 16) != 0;
+
+                    DmcInterruptFlag = false;
+
+                    if (!DmcEnable)
+                        DmcBytesRemaining = 0;
+                    else if (DmcBytesRemaining == 0)
+                        DmcBytesRemaining = DmcSampleLength;
                     break;
                 case 0x4017:
                     FrameCounter5Step = (value & 0x80) != 0;
@@ -225,15 +290,17 @@ namespace stasisEmulator.NesConsole
                     if (InterruptInhibit)
                         FrameInterruptFlag = false;
 
-                    //TODO: this should happen "3 or 4 CPU cycles" later
-                    FrameCounter = 0;
-                    if (FrameCounter5Step)
-                    {
-                        QuarterFrameClock();
-                        HalfFrameClock();
-                    }
+                    _frameCounterResetTimer = 4;
                     break;
             }
+        }
+
+        private readonly ushort[] _dmcPeriods = [
+            428, 380, 340, 320, 286, 254, 226, 214, 190, 160, 142, 128, 106, 84, 72, 54
+        ];
+        public ushort GetDmcPeriod(byte index)
+        {
+            return _dmcPeriods[index];
         }
 
         public void RunCycle()
@@ -242,13 +309,79 @@ namespace stasisEmulator.NesConsole
             Pulse2Sequencer.Clock();
             NoiseShiftRegister.Clock();
 
-            DoFrameCounter();
+            if (DmcTimer == 0)
+            {
+                DmcTimer = DmcPeriod;
 
+                if (!DmcSilence)
+                {
+                    bool add = (DmcShiftRegister & 1) != 0;
+                    if (add && DmcOutputLevel <= 125)
+                        DmcOutputLevel += 2;
+                    if (!add && DmcOutputLevel >= 2)
+                        DmcOutputLevel -= 2;
+                }
+
+                DmcShiftRegister >>= 1;
+                DmcSampleBitsRemaining--;
+
+                if (DmcSampleBitsRemaining == 0)
+                {
+                    DmcSampleBitsRemaining = 8;
+                    if (!SampleBufferLoaded)
+                    {
+                        DmcSilence = true;
+                    }
+                    else
+                    {
+                        DmcSilence = false;
+                        SampleBufferLoaded = false;
+                        DmcShiftRegister = DmcSampleBuffer;
+                    }
+                }
+            }
+            DmcTimer -= 2;
+
+            if (DmcEnable && !SampleBufferLoaded && DmcBytesRemaining > 0 && !_nes.Cpu.DmcDma)
+            {
+                _nes.Cpu.StartDmcDma(DmcCurrentAddress);
+                DmcCurrentAddress++;
+                if (DmcCurrentAddress == 0)
+                    DmcCurrentAddress = 0x8000;
+                DmcBytesRemaining--;
+                if (DmcBytesRemaining == 0)
+                {
+                    if (DmcLoop)
+                    {
+                        DmcCurrentAddress = DmcSampleAddress;
+                        DmcBytesRemaining = DmcSampleLength;
+                    }
+                    else if (DmcIrqEnabled)
+                    {
+                        DmcInterruptFlag = true;
+                    }
+                }
+            }
+
+            DoFrameCounter();
             OutputSample(GetMixerOutput());
         }
 
         public void CpuClock()
         {
+            if (_frameCounterResetTimer > 0)
+                _frameCounterResetTimer--;
+            if (_frameCounterResetTimer == 0)
+            {
+                _frameCounterResetTimer = -1;
+                FrameCounter = 0;
+                if (FrameCounter5Step)
+                {
+                    QuarterFrameClock();
+                    HalfFrameClock();
+                }
+            }
+
             FrameInterruptSetThisCycle = false;
             TriangleSequencer.Clock();
             if (FrameCounter == 14914 && !InterruptInhibit && !FrameCounter5Step)
@@ -331,7 +464,7 @@ namespace stasisEmulator.NesConsole
             bool noiseGate = NoiseShiftRegister.GateOutput() && NoiseLengthCounter.GateOutput();
             byte noiseOutput = (byte)(noiseGate ? NoiseEnvelope.GetOutputVolume() : 0);
 
-            return MixChannels(pulse1Output, pulse2Output, triangleOutput, noiseOutput, 0);
+            return MixChannels(pulse1Output, pulse2Output, triangleOutput, noiseOutput, DmcOutputLevel);
         }
 
         private short MixChannels(byte pulse1, byte pulse2, byte triangle, byte noise, byte dmc)

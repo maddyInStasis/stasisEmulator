@@ -41,6 +41,7 @@ namespace stasisEmulator.NesConsole
 
         //PPUSTATUS
         public bool VBlank;
+        private bool _vblankRead = false;
         public bool Sprite0Hit;
         public bool SpriteOverflow;
 
@@ -84,6 +85,20 @@ namespace stasisEmulator.NesConsole
         private const ushort AllYMask = (FineYMask | NametableYMask | CoarseYMask);
 
         private byte _ioBus;
+        public byte IoBus
+        {
+            get => _ioBus;
+            set
+            {
+                _ioBus = value;
+                _ioBusDecayTimer = BusDecayPeriod;
+            }
+        }
+        //this is all completely arbitrary, there's probably a better way to emulate this
+        private ushort _ioBusDecayTimer;
+        private const ushort BusDecayPeriod = 5000;
+        private byte _ioBusDecayIndex;
+        private readonly byte[] _ioBusDecayOrder = [1, 3, 5, 6, 0, 4, 7, 2];
         private byte _readBuffer;
 
         private byte _spriteEvalTemp;
@@ -166,6 +181,7 @@ namespace stasisEmulator.NesConsole
             if (address < 0x3F00)
             {
                 _nes.Cartridge?.ReadPpu(address, ref dataBus);
+                _nes.Cartridge?.OnPpuAddressUpdate(address);
             }
             else
             {
@@ -177,6 +193,22 @@ namespace stasisEmulator.NesConsole
                 dataBus = (byte)((dataBus & (0xF0 << 2)) | (pal & (0xFF >> 2)));
             }
         }
+        public byte DebugRead(ushort address)
+        {
+            if (address < 0x3F00 && _nes.Cartridge != null)
+            {
+                return _nes.Cartridge.DebugReadPpu(address);
+            }
+            else
+            {
+                byte pal;
+                if ((address & 3) == 0)
+                    pal = PaletteRam[address & 0x0F];
+                else
+                    pal = PaletteRam[address & 0x1F];
+                return pal;
+            }
+        }
 
         public void Write(ushort address, byte dataBus)
         {
@@ -186,18 +218,26 @@ namespace stasisEmulator.NesConsole
             }
             else
             {
+                int colorIndex = dataBus & 63;
+
                 if ((address & 3) == 0)
                 {
                     if ((address & 0x0F) == 0)
+                    {
                         _backgroundColorOkay = false;
+                        for (int i = 0; i < 32; i += 4)
+                        {
+                            PaletteRamColors[i] = Palette[colorIndex];
+                        }
+                    }
 
                     PaletteRam[address & 0x0F] = dataBus;
-                    PaletteRamColors[address & 0x0F] = Palette[dataBus & 63];
+                    PaletteRamColors[address & 0x0F] = Palette[colorIndex];
                 }
                 else
                 {
                     PaletteRam[address & 0x1F] = dataBus;
-                    PaletteRamColors[address & 0x1F] = Palette[dataBus & 63];
+                    PaletteRamColors[address & 0x1F] = Palette[colorIndex];
                 }
             }
         }
@@ -209,42 +249,45 @@ namespace stasisEmulator.NesConsole
             switch (register)
             {
                 case PPUSTATUS:
-                    _ioBus = (byte)(_ioBus & (0xFF >> 3));
-                    _ioBus |= (byte)(SpriteOverflow ? 0x20 : 0);
-                    _ioBus |= (byte)(Sprite0Hit ? 0x40 : 0);
-                    _ioBus |= (byte)(VBlank ? 0x80 : 0);
+                    IoBus = (byte)(IoBus & (0xFF >> 3));
+                    IoBus |= (byte)(SpriteOverflow ? 0x20 : 0);
+                    IoBus |= (byte)(Sprite0Hit ? 0x40 : 0);
+                    IoBus |= (byte)(VBlank ? 0x80 : 0);
                     VBlank = false;
                     w = false;
+                    _vblankRead = true;
                     break;
                 case OAMDATA:
                     if (Scanline < 240 && Dot >= 1 && Dot <= 64 && (RenderBG || RenderSprites))
                     {
-                        _ioBus = 0xFF;
+                        IoBus = 0xFF;
                         break;
                     }
 
                     if ((OamAddress & 3) != 2)
-                        _ioBus = Oam[OamAddress];
+                        IoBus = Oam[OamAddress];
                     else
-                        _ioBus = (byte)((_ioBus & 0b00011100) | (Oam[OamAddress] & 0b11100011));
+                        IoBus = (byte)(Oam[OamAddress] & 0b11100011);
 
                     break;
                 case PPUDATA:
                     if (v < 0x3F00)
                     {
-                        _ioBus = _readBuffer;
+                        IoBus = _readBuffer;
                         Read(v, ref _readBuffer);
                     }
                     else
                     {
+                        byte val = IoBus;
                         ReadVram(v, ref _readBuffer);
-                        Read(v, ref _ioBus);
+                        Read(v, ref val);
+                        IoBus = val;
                     }
                     v += (ushort)(VramInc32 ? 32 : 1);
                     break;
             }
 
-            dataBus = _ioBus;
+            dataBus = IoBus;
             return dataBus;
         }
 
@@ -252,7 +295,7 @@ namespace stasisEmulator.NesConsole
         {
             ushort register = (ushort)(address & RegMask);
 
-            _ioBus = value;
+            IoBus = value;
 
             switch (register)
             {
@@ -260,24 +303,24 @@ namespace stasisEmulator.NesConsole
                     if (_reset)
                         break;
 
-                    t = (ushort)((t & (0xFFFF ^ NametableMask)) | ((_ioBus & 3) << 10));
-                    VramInc32 = (_ioBus & 4) != 0;
-                    SpriteSecondPatternTable = (_ioBus & 8) != 0;
-                    BackgroundSecondPatternTable = (_ioBus & 16) != 0;
-                    Use8x16Sprites = (_ioBus & 32) != 0;
-                    EnableNMI = (_ioBus & 128) != 0;
+                    t = (ushort)((t & (0xFFFF ^ NametableMask)) | ((IoBus & 3) << 10));
+                    VramInc32 = (IoBus & 4) != 0;
+                    SpriteSecondPatternTable = (IoBus & 8) != 0;
+                    BackgroundSecondPatternTable = (IoBus & 16) != 0;
+                    Use8x16Sprites = (IoBus & 32) != 0;
+                    EnableNMI = (IoBus & 128) != 0;
                     break;
                 case PPUMASK:
                     if (_reset)
                         break;
 
-                    ShowLeftBG = (_ioBus & 2) != 0;
-                    ShowLeftSprites = (_ioBus & 4) != 0;
-                    RenderBG = (_ioBus & 8) != 0;
-                    RenderSprites = (_ioBus & 16) != 0;
+                    ShowLeftBG = (IoBus & 2) != 0;
+                    ShowLeftSprites = (IoBus & 4) != 0;
+                    RenderBG = (IoBus & 8) != 0;
+                    RenderSprites = (IoBus & 16) != 0;
                     break;
                 case OAMADDR:
-                    OamAddress = _ioBus;
+                    OamAddress = IoBus;
                     break;
                 case OAMDATA:
                     if (Scanline < 240)
@@ -285,7 +328,7 @@ namespace stasisEmulator.NesConsole
                         OamAddress += 4;
                         break;
                     }
-                    Oam[OamAddress] = _ioBus;
+                    Oam[OamAddress] = IoBus;
                     OamAddress++;
                     break;
                 case PPUSCROLL:
@@ -294,12 +337,12 @@ namespace stasisEmulator.NesConsole
 
                     if (!w)
                     {
-                        t = (ushort)((t & (AllYMask | NametableMask)) | (_ioBus >> 3));
-                        x = (byte)(_ioBus & 7);
+                        t = (ushort)((t & (AllYMask | NametableMask)) | (IoBus >> 3));
+                        x = (byte)(IoBus & 7);
                     }
                     else
                     {
-                        t = (ushort)((t & (AllXMask | NametableMask)) | (_ioBus << 12) | ((_ioBus << 2) & CoarseYMask));
+                        t = (ushort)((t & (AllXMask | NametableMask)) | (IoBus << 12) | ((IoBus << 2) & CoarseYMask));
                     }
                     w = !w;
                     break;
@@ -310,18 +353,19 @@ namespace stasisEmulator.NesConsole
                     if (!w)
                     {
                         //shift value into high byte, mask out uppper two bits, & with lower byte of t
-                        t = (ushort)(((_ioBus << 8) & (0xFFFF >> 2)) | (t & 0x00FF));
+                        t = (ushort)(((IoBus << 8) & (0xFFFF >> 2)) | (t & 0x00FF));
                     }
                     else
                     {
                         //replace lower byte of t with value
-                        t = (ushort)((t & 0xFF00) | _ioBus);
+                        t = (ushort)((t & 0xFF00) | IoBus);
                         v = t;
                     }
+
                     w = !w;
                     break;
                 case PPUDATA:
-                    Write(v, _ioBus);
+                    Write(v, IoBus);
                     v += (ushort)(VramInc32 ? 32 : 1);
                     break;
             }
@@ -335,27 +379,29 @@ namespace stasisEmulator.NesConsole
 
         public void RunCycle()
         {
-            if (Dot == 1)
+            EmulateBusDecay();
+
+            if (Dot == 1 && Scanline == 241)
             {
-                if (Scanline == 241)
-                {
+                if (!_vblankRead)
                     VBlank = true;
-                    FrameComplete = true;
-                    _oddFrame = !_oddFrame;
-                }
-                if (Scanline == 261)
-                {
-                    VBlank = false;
-                    Sprite0Hit = false;
-                    SpriteOverflow = false;
-                    _reset = false;
-                    _backgroundColorOkay = true;
-                    Array.Fill(OutputBuffer, PaletteRamColors[0]);
-                }
+                FrameComplete = true;
+                _oddFrame = !_oddFrame;
             }
 
+            _vblankRead = false;
             _nes.Cpu.NmiLine = EnableNMI && VBlank;
-            
+
+            if (Dot == 1 && Scanline == 261)
+            {
+                VBlank = false;
+                Sprite0Hit = false;
+                SpriteOverflow = false;
+                _reset = false;
+                _backgroundColorOkay = true;
+                Array.Fill(OutputBuffer, PaletteRamColors[0]);
+            }
+
             DoSpriteEvaluation();
             DoBgRead();
             if (Dot <= 256 && Dot > 1)
@@ -416,9 +462,7 @@ namespace stasisEmulator.NesConsole
                         spritePriority = (_spriteAttribute[i] & 0x20) == 0;
 
                         if (i == 0 && _scanlineContainsSprite0 && spritePaletteIndex != 0 && bgPaletteIndex != 0 && RenderBG && Dot < 256)
-                        {
                             Sprite0Hit = true;
-                        }
 
                         break;
                     }
@@ -442,8 +486,21 @@ namespace stasisEmulator.NesConsole
                     Scanline = 0;
             }
 
-            if (Dot == 0 && Scanline == 0 && !_oddFrame)
+            if (Dot == 0 && Scanline == 0 && !_oddFrame && (RenderBG || RenderSprites))
                 Dot++;
+        }
+
+        private void EmulateBusDecay()
+        {
+            if (_ioBusDecayTimer == 0)
+            {
+                _ioBusDecayTimer = BusDecayPeriod;
+                byte mask = (byte)(0xFF ^ (1 << _ioBusDecayOrder[_ioBusDecayIndex]));
+                _ioBus &= mask;
+                _ioBusDecayIndex++;
+                _ioBusDecayIndex &= 7;
+            }
+            _ioBusDecayTimer--;
         }
 
         private void DoBgRead()

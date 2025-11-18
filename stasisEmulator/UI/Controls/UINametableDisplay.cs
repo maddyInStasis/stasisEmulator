@@ -89,25 +89,21 @@ namespace stasisEmulator.UI.Controls
                     for (int tileX = 0; tileX < 32; tileX++)
                     {
                         ushort vramAddress = (ushort)(0x2000 + table * 0x400 + tileY * 32 + tileX);
-                        byte tile = 0;
-                        Nes.Ppu.Read(vramAddress, ref tile);
+                        byte tile = Nes.Ppu.DebugRead(vramAddress);
 
                         int tileIndex = tile;
                         if (Nes.Ppu.BackgroundSecondPatternTable)
                             tileIndex += 256;
 
                         byte attributeOffset = (byte)((tileX >> 2) + (tileY >> 2) * 8);
-                        byte attribute = 0;
-                        Nes.Ppu.Read((ushort)(0x400 * table + 0x23C0 + attributeOffset), ref attribute);
+                        byte attribute = Nes.Ppu.DebugRead((ushort)(0x400 * table + 0x23C0 + attributeOffset));
                         byte quadrant = (byte)(((tileX >> 1) & 1) + ((tileY >> 1) & 1) * 2);
                         byte palette = (byte)((attribute >> (quadrant * 2)) & 3);
 
                         for (int y = 0; y < 8; y++)
                         {
-                            byte lowByte = 0;
-                            Nes.Ppu.Read((ushort)(y + tileIndex * 16), ref lowByte);
-                            byte highByte = 0;
-                            Nes.Ppu.Read((ushort)(8 + y + tileIndex * 16), ref highByte);
+                            byte lowByte = Nes.Ppu.DebugRead((ushort)(y + tileIndex * 16));
+                            byte highByte = Nes.Ppu.DebugRead((ushort)(8 + y + tileIndex * 16));
                             for (int x = 0; x < 8; x++)
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;

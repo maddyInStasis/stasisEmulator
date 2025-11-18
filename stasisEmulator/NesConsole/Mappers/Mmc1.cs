@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace stasisEmulator.NesConsole.Mappers
+﻿namespace stasisEmulator.NesConsole.Mappers
 {
     public class Mmc1 : Mapper
     {
@@ -116,7 +110,7 @@ namespace stasisEmulator.NesConsole.Mappers
             }
         }
 
-        public Mmc1(Rom rom, bool isRevisionB) : base(rom)
+        public Mmc1(Rom rom, Nes nes, bool isRevisionB) : base(rom, nes)
         {
             _isRevisionB = isRevisionB;
             AddRegisterRange(0x8000, 0xFFFF, true);

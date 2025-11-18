@@ -10,7 +10,7 @@ namespace stasisEmulator.NesConsole.Mappers
     {
         protected override ushort PrgPageSize => 0x4000;
         protected override ushort ChrPageSize => 0x2000;
-        public Nrom(Rom rom) : base(rom)
+        public Nrom(Rom rom, Nes nes) : base(rom, nes)
         {
             SelectPrgPage(0, 0);
             SelectPrgPage(1, 1);

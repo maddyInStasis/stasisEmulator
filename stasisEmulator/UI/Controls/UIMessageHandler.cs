@@ -67,7 +67,7 @@ namespace stasisEmulator.UI.Controls
         {
             float deltaTime = (float)(gameTime.ElapsedGameTime.TotalSeconds);
 
-            for (int i = 0; i < _messages.Count; i++)
+            for (int i = _messages.Count - 1; i >= 0; i--)
             {
                 _messageTimers[i] -= deltaTime;
                 if (_messageTimers[i] > 0)

@@ -17,6 +17,9 @@ namespace stasisEmulator.UI.Controls
         public Color BorderColor { get; set; } = Color.LightGray;
         public int BorderThickness { get; set; } = 0;
 
+        public bool Grayscale { get; set; } = false;
+        public byte Palette { get; set; } = 0;
+
         private RenderTarget2D _patternRenderTarget;
         private readonly Color[] _colors = new Color[256 * 128];
         private RenderTarget2D _outputRenderTarget;
@@ -70,15 +73,18 @@ namespace stasisEmulator.UI.Controls
                     {
                         for (int y = 0; y < 8;  y++)
                         {
-                            byte lowByte = 0;
-                            cart.ReadPpu((ushort)(y + column * 16 + row * 256 + table * 4096), ref lowByte);
-                            byte highByte = 0;
-                            cart.ReadPpu((ushort)(8 + y + column * 16 + row * 256 + table * 4096), ref highByte);
+                            byte lowByte = Nes.Ppu.DebugRead((ushort)(y + column * 16 + row * 256 + table * 4096));
+                            byte highByte = Nes.Ppu.DebugRead((ushort)(8 + y + column * 16 + row * 256 + table * 4096));
                             for (int x = 0; x < 8; x++)
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;
                                 paletteIndex += ((highByte >> (7 - x)) & 1) * 2;
-                                Color color = new(paletteIndex * 85, paletteIndex * 85, paletteIndex * 85);
+                                Color color;
+                                if (Grayscale)
+                                    color = new(paletteIndex * 85, paletteIndex * 85, paletteIndex * 85);
+                                else
+                                    color = Nes.Ppu.PaletteRamColors[Palette * 4 + paletteIndex];
+
                                 SetPixel(x + column * 8 + table * 128, y + row * 8, color);
                             }
                         }
