@@ -1,9 +1,9 @@
 ﻿using Microsoft.Xna.Framework.Input;
 using stasisEmulator.Input;
 
-namespace stasisEmulator.NesConsole.Input
+namespace stasisEmulator.NesCore.Input
 {
-    public class StandardController(Nes nes) : InputDevice(nes)
+    public class StandardController(Nes nes, int playerIndex) : InputDevice(nes, playerIndex)
     {
         private enum NesButton
         {
@@ -61,6 +61,13 @@ namespace stasisEmulator.NesConsole.Input
 
         private void FillShiftRegister()
         {
+            if (_nes.Tas != null && _nes.Tas.Running)
+            {
+                var frame = _nes.Tas.CurrentFrame;
+                _shiftRegister = PlayerIndex == 0 ? frame.P0Inputs : frame.P1Inputs;
+                return;
+            }
+
             _inputs.UpdateInputStates();
             _shiftRegister = 0;
 

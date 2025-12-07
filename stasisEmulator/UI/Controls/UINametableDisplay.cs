@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using stasisEmulator.NesConsole;
+using stasisEmulator.NesCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -34,9 +34,6 @@ namespace stasisEmulator.UI.Controls
             ChildrenLocked = true;
         }
 
-        //TODO: optimize me! visibly lags emulator screen when nametable viewer allowed to render (figure out how to profile this stuff)
-        //note: doesn't visibly lag anymore, but probably still a good idea
-        //(also maybe allow comparing previous results with a percentage for silly dopamine hits)
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
             if (Bounds.Width == 0 || Bounds.Height == 0)
@@ -60,7 +57,7 @@ namespace stasisEmulator.UI.Controls
                 graphics.SetRenderTarget(null);
             }
 
-            var cart = Nes.Cartridge;
+            var cart = Nes.Mapper;
             if (cart == null)
             {
                 Present();
@@ -108,7 +105,7 @@ namespace stasisEmulator.UI.Controls
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;
                                 paletteIndex += ((highByte >> (7 - x)) & 1) * 2;
-                                Color color = Nes.Ppu.PaletteRamColors[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0 & 0b111111];
+                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0 & 0b111111]];
 
                                 int drawX = x + tileX * 8 + (table & 1) * PixelWidth / 2;
                                 int drawY = y + tileY * 8 + (table >> 1) * PixelHeight / 2;

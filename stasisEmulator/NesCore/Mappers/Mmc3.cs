@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace stasisEmulator.NesConsole.Mappers
+namespace stasisEmulator.NesCore.Mappers
 {
     public class Mmc3 : Mapper
     {
@@ -15,7 +15,7 @@ namespace stasisEmulator.NesConsole.Mappers
         private bool _prgBankMode;
         private bool _chrBanksInverted;
 
-        private byte[] _banks = new byte[8];
+        private readonly byte[] _banks = new byte[8];
 
         private bool _prgRamEnabled;
         private bool _prgRamWriteProtect;
@@ -138,7 +138,7 @@ namespace stasisEmulator.NesConsole.Mappers
 
         private void MapPrgRam()
         {
-            SetPrgMemoryMapping(0x6000, 0x7FFF, 0, PrgMemoryType.WorkRam, _prgRamEnabled ? (_prgRamWriteProtect ? MemoryAccessType.Read : MemoryAccessType.ReadWrite) : MemoryAccessType.None);
+            SetPrgMemoryMapping(0x6000, 0x7FFF, 0, Rom.HasBattery ? PrgMemoryType.SaveRam : PrgMemoryType.WorkRam, _prgRamEnabled ? (_prgRamWriteProtect ? MemoryAccessType.Read : MemoryAccessType.ReadWrite) : MemoryAccessType.None);
         }
 
         const ushort A12 = 1 << 12;

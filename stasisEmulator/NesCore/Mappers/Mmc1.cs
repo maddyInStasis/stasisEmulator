@@ -1,4 +1,4 @@
-﻿namespace stasisEmulator.NesConsole.Mappers
+﻿namespace stasisEmulator.NesCore.Mappers
 {
     public class Mmc1 : Mapper
     {

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using stasisEmulator.NesConsole;
+using stasisEmulator.NesCore;
 using stasisEmulator.UI.Controls;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -100,7 +100,8 @@ namespace stasisEmulator.UI.Windows
             for (int i = 0; i < 32; i++)
             {
                 var color = paletteColors[i];
-                color.BackgroundColor = _nes.Ppu.PaletteRamColors[i];
+                int paletteIndex = i & 3;
+                color.BackgroundColor = _nes.Ppu.Palette[_nes.Ppu.PaletteRam[paletteIndex != 0 ? i : 0]];
             }
         }
     }

@@ -51,6 +51,11 @@ namespace stasisEmulator.UI.Controls
                 AddMenuItem(child);
             }
         }
+        public UIMenuItem(string text, List<UIMenuItem> children) : this(children)
+        {
+            Text = text;
+        }
+        public UIMenuItem(string text) : this(text, []) { }
 
         private void Init()
         {
@@ -130,6 +135,15 @@ namespace stasisEmulator.UI.Controls
             item.MenuItemParent = null;
             item.Depth = 0;
             item.Active = true;
+        }
+
+        public void ClearMenuItems()
+        {
+            for (int i = MenuItemChildren.Count - 1; i >= 0; i--)
+            {
+                var item = MenuItemChildren[i];
+                RemoveMenuItem(item);
+            }
         }
 
         protected override void UpdateElementPreLayout(GameTime gameTime)

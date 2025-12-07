@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using stasisEmulator.NesConsole;
+using stasisEmulator.NesCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,7 +53,7 @@ namespace stasisEmulator.UI.Controls
                 graphics.SetRenderTarget(null);
             }
 
-            var cart = Nes.Cartridge;
+            var cart = Nes.Mapper;
             if (cart == null)
             {
                 Present();
@@ -83,7 +83,7 @@ namespace stasisEmulator.UI.Controls
                                 if (Grayscale)
                                     color = new(paletteIndex * 85, paletteIndex * 85, paletteIndex * 85);
                                 else
-                                    color = Nes.Ppu.PaletteRamColors[Palette * 4 + paletteIndex];
+                                    color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? Palette * 4 + paletteIndex : 0]];
 
                                 SetPixel(x + column * 8 + table * 128, y + row * 8, color);
                             }

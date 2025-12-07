@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace stasisEmulator.NesConsole
+namespace stasisEmulator.NesCore
 {
     public struct Rom
     {

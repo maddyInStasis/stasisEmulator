@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Diagnostics;
 
-namespace stasisEmulator.NesConsole
+namespace stasisEmulator.NesCore
 {
     public class Cpu(Nes nes)
     {
-        private enum OperationPhase
+        private enum CurrentOperation
         {
             Fetch,
             Address,
@@ -150,6 +150,7 @@ namespace stasisEmulator.NesConsole
         private bool DoNmi;
 
         public int IrqLine;
+        public bool IrqLevel;
         private bool DoIrq;
 
         private enum Interrupt
@@ -164,9 +165,6 @@ namespace stasisEmulator.NesConsole
         public readonly byte[] Ram = new byte[0x800];
 
         public ulong CycleCount;
-
-        public enum CycleType { Get, Put }
-        public CycleType CurrentCycleType { get => (CycleCount & 1) == 0 ? CycleType.Get : CycleType.Put; }
 
         public ulong InstructionCount;
         public readonly TraceLogger TraceLogger = new(30000);
@@ -197,7 +195,7 @@ namespace stasisEmulator.NesConsole
         private byte _dataLatch = 0;
         private byte _dataBus = 0;
 
-        private OperationPhase _operationPhase;
+        private CurrentOperation _operationPhase;
         private int _operationCycle;
         private bool _operationPhaseComplete;
 
@@ -219,7 +217,7 @@ namespace stasisEmulator.NesConsole
         private bool _dmaTryHalt = false;
         private bool _dmaTryAlign = false;
 
-        private bool _dmcDmaDummyCycle = false;
+        private bool _dmcDmaDummyCycleComplete = false;
         private ushort _dmcDmaAddress;
 
         private ushort _oamDmaPage;
@@ -255,7 +253,7 @@ namespace stasisEmulator.NesConsole
 
             Flag_InterruptDisable = true;
 
-            _operationPhase = OperationPhase.Fetch;
+            _operationPhase = CurrentOperation.Fetch;
             _operationCycle = 0;
             _operationPhaseComplete = false;
 
@@ -278,7 +276,7 @@ namespace stasisEmulator.NesConsole
             if (address < 0x2000)
                 _dataLatch = Ram[address & (0x800 - 1)];
             else if (address >= 0x4020)
-                _nes.Cartridge?.ReadCpu(address, ref _dataLatch);
+                _nes.Mapper?.ReadCpu(address, ref _dataLatch);
             else if (address < 0x4000)
                 _nes.Ppu.ReadRegister(address, ref _dataLatch);
             else if (address == 0x4016)
@@ -301,8 +299,8 @@ namespace stasisEmulator.NesConsole
 
             if (address < 0x2000)
                 value = Ram[address & (0x800 - 1)];
-            else if (address >= 0x4020 && _nes.Cartridge != null)
-                value = _nes.Cartridge.DebugReadCpu(address);
+            else if (address >= 0x4020 && _nes.Mapper != null)
+                value = _nes.Mapper.DebugReadCpu(address);
 
             return value;
         }
@@ -316,7 +314,7 @@ namespace stasisEmulator.NesConsole
             if (address < 0x2000)
                 Ram[address & (0x800 - 1)] = value;
             else if (address >= 0x4020)
-                _nes.Cartridge?.WriteCpu(address, value);
+                _nes.Mapper?.WriteCpu(address, value);
             else if (address < 0x4000)
                 _nes.Ppu.WriteRegister(address, value);
             else if (address == 0x4014)
@@ -346,7 +344,7 @@ namespace stasisEmulator.NesConsole
             DmcDma = true;
             _dmaTryAlign = false;
             _dmcDmaAddress = address;
-            _dmcDmaDummyCycle = false;
+            _dmcDmaDummyCycleComplete = false;
         }
 
         private void Push(byte value)
@@ -360,6 +358,8 @@ namespace stasisEmulator.NesConsole
             if (_halt)
                 return;
 
+            _isReadCycle = true;
+
             if ((_oamDma || DmcDma) && !_dmaTryHalt)
             {
                 DoDma();
@@ -369,13 +369,13 @@ namespace stasisEmulator.NesConsole
 
             switch (_operationPhase)
             {
-                case OperationPhase.Fetch:
+                case CurrentOperation.Fetch:
                     Fetch();
                     break;
-                case OperationPhase.Address:
+                case CurrentOperation.Address:
                     DoAddressing();
                     break;
-                case OperationPhase.Execute:
+                case CurrentOperation.Execute:
                     DoInstructionCycle();
                     break;
             }
@@ -392,7 +392,7 @@ namespace stasisEmulator.NesConsole
 
         private void DoDma()
         {
-            bool isGetCycle = CurrentCycleType == CycleType.Get;
+            bool isGetCycle = !_nes.Apu.PutCycle;
 
             if (_dmaTryAlign && !isGetCycle)
                 return;
@@ -417,9 +417,9 @@ namespace stasisEmulator.NesConsole
             }
             if (DmcDma)
             {
-                if (!_dmcDmaDummyCycle)
+                if (!_dmcDmaDummyCycleComplete)
                 {
-                    _dmcDmaDummyCycle = true;
+                    _dmcDmaDummyCycleComplete = true;
                     _dmaTryAlign = true;
                     return;
                 }
@@ -494,9 +494,9 @@ namespace stasisEmulator.NesConsole
             //a lot of addressing modes need to go straight to the execution step though
             //TODO: fix
             if (_currentAddr == Addr.Imp || _currentAddr == Addr.Acc || _currentAddr == Addr.Imm || _currentAddr == Addr.Rel || _currentAddr == Addr.Other)
-                _operationPhase = OperationPhase.Execute;
+                _operationPhase = CurrentOperation.Execute;
             else
-                _operationPhase = OperationPhase.Address;
+                _operationPhase = CurrentOperation.Address;
         }
 
         private ushort _correctIndexedAddress = 0;
@@ -768,7 +768,7 @@ namespace stasisEmulator.NesConsole
             if (_operationPhaseComplete)
             {
                 _operationCycle = 0;
-                _operationPhase = OperationPhase.Execute;
+                _operationPhase = CurrentOperation.Execute;
                 _operationPhaseComplete = false;
             }
         }
@@ -824,7 +824,8 @@ namespace stasisEmulator.NesConsole
                                 else
                                     Push((byte)(P | Break));
                             }
-                            PollInterrupts(true);
+
+                            PollInterrupts(false);
                             if (DoNmi)
                                 _interruptToRun = Interrupt.Nmi;
                             else if (DoIrq)
@@ -839,7 +840,7 @@ namespace stasisEmulator.NesConsole
                                 _ => 0xFFFE
                             };
                             PC = Read(fetchAddr);
-                            
+
                             break;
                         case 5:
                             fetchAddr = _interruptToRun switch
@@ -1623,7 +1624,7 @@ namespace stasisEmulator.NesConsole
             if (_operationPhaseComplete)
             {
                 _operationCycle = 0;
-                _operationPhase = OperationPhase.Fetch;
+                _operationPhase = CurrentOperation.Fetch;
                 _operationPhaseComplete = false;
 
                 if (!_ignoreCurrentLog)
@@ -1703,7 +1704,7 @@ namespace stasisEmulator.NesConsole
             NmiPinsSignal = NmiLine;
 
             if (!DoIrq || canDisableIrq)
-                DoIrq = IrqLine > 0 && !Flag_InterruptDisable;
+                DoIrq = IrqLevel && !Flag_InterruptDisable;
         }
     }
 }

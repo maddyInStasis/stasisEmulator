@@ -1,10 +1,10 @@
 ﻿using Microsoft.Xna.Framework.Audio;
-using stasisEmulator.NesConsole.ApuComponents;
+using stasisEmulator.NesCore.ApuComponents;
 using System;
 using System.Diagnostics;
 using System.Threading;
 
-namespace stasisEmulator.NesConsole
+namespace stasisEmulator.NesCore
 {
     public class Apu
     {
@@ -26,6 +26,7 @@ namespace stasisEmulator.NesConsole
         public readonly NoiseShiftRegister NoiseShiftRegister = new();
         public readonly LengthCounter NoiseLengthCounter = new();
 
+        //TODO: cleanup (create component classes)
         public bool DmcEnable;
         public bool DmcIrqEnabled;
         public bool DmcLoop;
@@ -41,6 +42,8 @@ namespace stasisEmulator.NesConsole
         public ushort DmcCurrentAddress;
         public ushort DmcSampleLength;
         public ushort DmcBytesRemaining;
+
+        public bool PutCycle;
 
         public int FrameCounter = 0;
         public bool FrameCounter5Step;
@@ -138,9 +141,24 @@ namespace stasisEmulator.NesConsole
             NoiseShiftRegister.Power();
             NoiseLengthCounter.Power();
 
+            DmcEnable = false;
+            DmcIrqEnabled = false;
+            DmcLoop = false;
             DmcPeriod = GetDmcPeriod(0);
+            DmcTimer = 0;
+            DmcOutputLevel = 0;
+            DmcSilence = false;
+            DmcSampleBuffer = 0;
+            SampleBufferLoaded = false;
+            DmcShiftRegister = 0;
+            DmcSampleBitsRemaining = 0;
+            DmcSampleAddress = 0;
+            DmcCurrentAddress = 0;
+            DmcSampleLength = 0;
+            DmcBytesRemaining = 0;
 
-            FrameCounter5Step = false;
+
+        FrameCounter5Step = false;
             InterruptInhibit = false;
 
             DmcOutputLevel = 0;
@@ -156,6 +174,8 @@ namespace stasisEmulator.NesConsole
             Pulse2LengthCounter.Enabled = false;
             TriangleLengthCounter.Enabled = false;
             NoiseLengthCounter.Enabled = false;
+
+            DmcOutputLevel &= 1;
         }
 
         public byte RegisterRead(ushort address, ref byte dataBus)

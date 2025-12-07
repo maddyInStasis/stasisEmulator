@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace stasisEmulator.NesConsole.Mappers
+namespace stasisEmulator.NesCore.Mappers
 {
     public class Nrom : Mapper
     {

@@ -1,7 +1,7 @@
 ﻿using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using stasisEmulator.NesConsole;
+using stasisEmulator.NesCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +12,7 @@ namespace stasisEmulator.UI.Controls
 {
     public class UIEmulatorDisplay : UIControl
     {
-        public Nes Nes { get; set; }
+        public IEmulatorCore EmulatorCore { get; set; }
         public Color BackgroundColor { get; set; } = Color.Black;
         public Color BorderColor { get; set; } = Color.LightGray;
         public int BorderThickness { get; set; } = 2;
@@ -31,24 +31,27 @@ namespace stasisEmulator.UI.Controls
         private Texture2D _screenTexture;
         private RenderTarget2D _outputRenderTarget;
 
-        public UIEmulatorDisplay(Nes nes) { Init(nes); }
-        public UIEmulatorDisplay(Nes nes, UIControl parent) : base(parent) { Init(nes); }
+        public UIEmulatorDisplay(IEmulatorCore emulatorCore) { Init(emulatorCore); }
+        public UIEmulatorDisplay(IEmulatorCore emulatorCore, UIControl parent) : base(parent) { Init(emulatorCore); }
 
-        private void Init(Nes nes)
+        private void Init(IEmulatorCore emulatorCore)
         {
-            Nes = nes;
+            EmulatorCore = emulatorCore;
             ChildrenLocked = true;
         }
 
         protected override void RenderElementContents(SpriteBatch spriteBatch)
         {
+            if (EmulatorCore == null)
+                return;
+
             if (Bounds.Width == 0  || Bounds.Height == 0)
                 return;
 
             var graphics = spriteBatch.GraphicsDevice;
-            _screenTexture ??= new(graphics, Ppu.PixelWidth, Ppu.PixelHeight);
+            _screenTexture ??= new(graphics, EmulatorCore.ViewportWidth, EmulatorCore.ViewportHeight);
 
-            _screenTexture.SetData(Nes.Ppu.OutputBuffer);
+            _screenTexture.SetData(EmulatorCore.OutputBuffer);
 
             if (_outputRenderTarget == null || _outputRenderTarget.Bounds.Size != Bounds.Size)
                 _outputRenderTarget = new(graphics, Bounds.Width, Bounds.Height);
@@ -77,20 +80,9 @@ namespace stasisEmulator.UI.Controls
             if (spriteFont == null)
                 return;
 
-            double _cpuElapsedTime = Nes.CpuWatch.Elapsed.TotalMilliseconds;
-            double _ppuElapsedTime = Nes.PpuWatch.Elapsed.TotalMilliseconds;
-            double _apuElapsedTime = Nes.ApuWatch.Elapsed.TotalMilliseconds;
-
-            double total = Nes.FrameElapsedTime / Nes.FrameCount;
+            double total = EmulatorCore.TotalFrameTime / EmulatorCore.FrameCount;
 
             string text = "";
-
-            if (_cpuElapsedTime > 0)
-            {
-                text += $"CPU: {_cpuElapsedTime / Nes.FrameCount:n3} ms" +
-                $"\nPPU: {_ppuElapsedTime / Nes.FrameCount:n3} ms" +
-                $"\nAPU: {_apuElapsedTime / Nes.FrameCount:n3} ms";
-            }
                 
             text += $"{(text.Length > 0 ? "\n" : "")}Total: {total:n3} ms" +
                 $"\nFrame Percentage: {total / (1f / 60 * 1000) * 100:n1}% (Total / 60fps)";

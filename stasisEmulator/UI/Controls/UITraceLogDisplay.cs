@@ -1,7 +1,7 @@
 ﻿using FontStashSharp;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using stasisEmulator.NesConsole;
+using stasisEmulator.NesCore;
 using stasisEmulator.UI.Components;
 using System;
 using System.Collections.Generic;
@@ -103,7 +103,7 @@ namespace stasisEmulator.UI.Controls
 
         private static string GetColumnString(Disassembly disassembly)
         {
-            return $"{GetInstrName(disassembly.Instruction)} {GetAddrString(disassembly)}".PadRight(38);
+            return $"{GetInstrName(disassembly.Instruction)} {GetAddrString(disassembly)}".PadRight(39);
         }
 
         private static string GetColumnString(Registers registers)
@@ -150,7 +150,7 @@ namespace stasisEmulator.UI.Controls
         private int GetTotalWidth()
         {
             int offset = 0;
-            foreach(var columnType in _traceLogColumns)
+            foreach (var columnType in _traceLogColumns)
             {
                 offset += (int)GetWidthOfChars(_columnCharacterWidth[columnType]);
                 offset += AdvanceWidth;
@@ -198,57 +198,89 @@ namespace stasisEmulator.UI.Controls
             return name;
         }
 
-        private static readonly Dictionary<ushort, string> _ppuRegisterNames = new()
+        readonly struct LogLabel(string readName, string writeName)
         {
-            {Ppu.PPUCTRL, "PPUCTRL"},
-            {Ppu.PPUMASK, "PPUMASK"},
-            {Ppu.PPUSTATUS, "PPUSTATUS"},
-            {Ppu.OAMADDR, "OAMADDR"},
-            {Ppu.OAMDATA, "OAMDATA"},
-            {Ppu.PPUSCROLL, "PPUSCROLL"},
-            {Ppu.PPUADDR, "PPUADDR"},
-            {Ppu.PPUDATA, "PPUDATA"}
+            readonly string _readName = readName;
+            readonly string _writeName = writeName;
+
+            public readonly bool HasMultipleNames = readName != writeName;
+
+            public LogLabel(string name) : this(name, name) { }
+
+            public string GetName(bool write)
+            {
+                return write ? _writeName : _readName;
+            }
+        }
+
+        private static readonly Dictionary<ushort, LogLabel> _labels = new(){
+            //PPU
+            {0x2000, new("PpuControl")},
+            {0x2001, new("PpuMask")},
+            {0x2002, new("PpuStatus")},
+            {0x2003, new("OamAddr")},
+            {0x2004, new("OamData")},
+            {0x2005, new("PpuScroll")},
+            {0x2006, new("PpuAddr")},
+            {0x2007, new("PpuData")},
+
+            {0x4014, new("SpriteDma")},
+
+            //APU
+            {0x4000, new("Pulse1DutyEnv")},
+            {0x4001, new("Pulse1Sweep")},
+            {0x4002, new("Pulse1Period")},
+            {0x4003, new("Pulse1Length")},
+
+            {0x4004, new("Pulse2DutyEnv")},
+            {0x4005, new("Pulse2Sweep")},
+            {0x4006, new("Pulse2Period")},
+            {0x4007, new("Pulse2Length")},
+
+            {0x4008, new("TriangleCounter")},
+            {0x400A, new("TrianglePeriod")},
+            {0x400B, new("TriangleLength")},
+
+            {0x400C, new("NoiseEnv")},
+            {0x400E, new("NoisePeriod")},
+            {0x400F, new("NoiseLength")},
+
+            {0x4010, new("DmcFreq")},
+            {0x4011, new("DmcLoad")},
+            {0x4012, new("DmcAddress")},
+            {0x4013, new("DmcLength")},
+
+            {0x4015, new("ApuStatus", "ApuControl")},
+
+            //IO / Frame counter
+            {0x4016, new("Controller1")},
+            {0x4017, new("Controller2", "FrameCounter")},
         };
 
-        private static readonly Dictionary<ushort, string> _apuRegisterNames = new()
+        private static ushort MirrorAddress(ushort address)
         {
-            
-        };
+            if (address < 0x2000)
+                return (ushort)(address & 0x7FF);
+            if (address < 0x4000)
+                return (ushort)((address & 7) | 0x2000);
 
-        private static string GetRegisterString(ushort address, bool writeInstruction)
+            return address;
+        }
+
+        private static string GetLabeledString(ushort address, bool writeInstruction)
         {
             string output = $"${address:X4}";
+            ushort mirroredAddress = MirrorAddress(address);
 
-            if (address >= 0x2000 && address < 0x4000)
+            //why is it initially null here????
+            if (_labels != null && _labels.TryGetValue(mirroredAddress, out var label))
             {
-                output = _ppuRegisterNames[(ushort)(address & Ppu.RegMask)];
-                if (address != (address & Ppu.RegMask))
-                {
-                    output += $" (Mirror ${address:X4})";
-                }
-            }
-
-            //TODO: test read/write differentiation, see what Mesen calls them
-            if (address >= 0x4000 && address < 0x4017)
-            {
-                if (address == 0x4014)
-                    return "OAMDMA";
-                if (address == 0x4016)
-                    return "ControllerPort1";
-                if (address == 0x4017 && !writeInstruction)
-                    return "ControllerPort2";
-                
-                if (address == 0x4015)
-                {
-                    if (writeInstruction)
-                        return "APUCONTROL";
-                    else
-                        return "APUSTATUS";
-                }
-
-                _apuRegisterNames.TryGetValue(address, out string apuReg);
-                if (apuReg != null)
-                    return apuReg;
+                output = label.GetName(writeInstruction);
+                output += $"_{mirroredAddress:X4}";
+                if (label.HasMultipleNames)
+                    output += $" {(writeInstruction ? "(Write)" : "(Read)")}";
+                if (address != mirroredAddress)
+                    output += " (Mirror)";
             }
 
             return output;
@@ -260,8 +292,8 @@ namespace stasisEmulator.UI.Controls
             ushort effectiveAddr = disassembly.EffectiveAddress;
             bool writeInstruction = disassembly.WriteInstruction;
 
-            string regString = GetRegisterString(argument, writeInstruction);
-            string effectiveRegString = GetRegisterString(effectiveAddr, writeInstruction);
+            string regString = GetLabeledString(argument, writeInstruction);
+            string effectiveRegString = GetLabeledString(effectiveAddr, writeInstruction);
 
             return disassembly.AddressingMode switch
             {

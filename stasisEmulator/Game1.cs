@@ -2,17 +2,17 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using stasisEmulator.UI.Controls;
-using stasisEmulator.NesConsole;
-using stasisEmulator.NesConsole.Mappers;
+using stasisEmulator.NesCore;
+using stasisEmulator.NesCore.Mappers;
 using stasisEmulator.Input;
 using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Threading;
-using Microsoft.Xna.Framework.Input;
-using System.Diagnostics;
 using stasisEmulator.UI.Windows;
 using System.Collections.Generic;
+using System.Diagnostics;
+using stasisEmulator.NesCore.Input;
 
 namespace stasisEmulator
 {
@@ -21,28 +21,25 @@ namespace stasisEmulator
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
 
-        private OpenFileDialog _currentDialog;
+        private OpenFileDialog _currentRomDialog;
+        private OpenFileDialog _currentTasDialog;
 
         private UIWindow _mainWindow;
         private UIEmulatorDisplay _mainDisplay;
 
-        private TraceLogWindow _tracelogger;
-        private MemoryViewerWindow _memoryViewer;
-        private PatternViewerWindow _patternViewer;
-        private NametableViewerWindow _nametableViewer;
-
         private UIMessageHandler _messageHandler;
 
-        private UIMenuItem _openButton;
+        private UIMenuItem _debugDropdown;
 
-        private UIMenuItem _traceloggerButton;
-        private UIMenuItem _memoryViewerButton;
-        private UIMenuItem _patternViewerButton;
-        private UIMenuItem _nametableViewerButton;
+        private UIMenuItem _openRomButton;
+        private UIMenuItem _openTasButton;
+
+        private UIMenuItem _tasRestart;
+        private UIMenuItem _tasStop;
 
         private UIMenuItem _showFrameTimeButton;
 
-        private Nes _nes;
+        private IEmulatorCore _emulatorCore;
 
         public Game1()
         {
@@ -59,21 +56,10 @@ namespace stasisEmulator
             _graphics.PreferredBackBufferHeight = 1080;
             _graphics.ApplyChanges();
 
-            _nes = new();
             //please don't lag when out of focus thank you
             InactiveSleepTime = new();
 
             Window.AllowUserResizing = true;
-            var path = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-
-            path += @"\Roms\nes-test-roms-master\AccuracyCoin.nes";
-            //path += @"\Roms\nes-test-roms-master\ppu_read_buffer\test_ppu_read_buffer.nes";
-            //path += @"\Roms\Best NES Games\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
-            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes";
-            //path += @"\Roms\Best NES Games\Tetris\Tetris (USA).nes";
-            //path += @"\Roms\Best NES Games\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
-
-            TryLoadRom(path);
 
             base.Initialize();
         }
@@ -82,14 +68,60 @@ namespace stasisEmulator
         {
             try
             {
-                var rom = RomLoader.LoadRom(path);
-                var mapper = MapperFactory.CreateMapper(rom, _nes);
-                _nes.Cartridge = mapper;
-                _nes.Power();
+                string ext = Path.GetExtension(path).ToLower();
+                IEmulatorCore newCore = _emulatorCore;
+
+                switch (ext)
+                {
+                    case ".nes":
+                        if (_emulatorCore == null || _emulatorCore.ConsoleType != ConsoleType.Nes)
+                            newCore = new Nes(GraphicsDevice);
+                        break;
+                    default:
+                        throw new Exception($"Unknown ROM file type: \"{ext}\"");
+                }
+
+                newCore?.LoadRom(path);
+
+                if (newCore != _emulatorCore)
+                {
+                    _emulatorCore?.Unload();
+                    SetupCore(newCore);
+                }
             }
             catch (Exception e)
             {
                 _messageHandler.AddMessage($"Error loading ROM: {e.Message}");
+            }
+        }
+
+        private void SetupCore(IEmulatorCore newCore)
+        {
+            _emulatorCore = newCore;
+            _mainDisplay.EmulatorCore = newCore;
+
+            _debugDropdown.ClearMenuItems();
+
+            foreach(var kv in _emulatorCore.DebugOptions)
+            {
+                var header = kv.Key;
+                var action = kv.Value;
+
+                var item = CreateDropDownItem(header);
+                item.Click += (sender, e) => { action.Invoke(); };
+                _debugDropdown.AddMenuItem(item);
+            }
+        }
+
+        private void TryLoadTas(string path)
+        {
+            try
+            {
+                _emulatorCore?.LoadTas(path);
+            }
+            catch (Exception e)
+            {
+                _messageHandler.AddMessage($"Error loading TAS: {e.Message}");
             }
         }
 
@@ -112,35 +144,36 @@ namespace stasisEmulator
             CreateUI();
         }
 
+        private static UIMenuItem CreateDropDownItem(string header, List<UIMenuItem> children)
+        {
+            return new(children)
+            {
+                Text = header,
+                Padding = new(10, 6),
+                IdleColor = Color.Transparent,
+                HoverColor = Color.White * 0.3f,
+                PressColor = Color.White * 0.15f,
+                TextColor = Color.White,
+                BorderColor = Color.Transparent,
+            };
+        }
+        private static UIMenuItem CreateDropDownItem(string header) { return CreateDropDownItem(header, []); }
+
         //TODO: create UITextButton
         //TODO: make this into its own window class too
         private void CreateUI()
         {
-            _mainDisplay = new(_nes)
+            _mainDisplay = new(_emulatorCore)
             {
                 Width = UISize.Grow(),
                 Height = UISize.Grow(),
-                Padding = new(8, 2)
+                Padding = new(8, 2),
             };
 
-            static UIMenuItem createDropDownItem(string header, List<UIMenuItem> children)
+            _openRomButton = CreateDropDownItem("Open");
+            _openRomButton.Click += (sender, e) =>
             {
-                return new(children)
-                {
-                    Text = header,
-                    Padding = new(10, 6),
-                    IdleColor = Color.Transparent,
-                    HoverColor = Color.White * 0.3f,
-                    PressColor = Color.White * 0.15f,
-                    TextColor = Color.White,
-                    BorderColor = Color.Transparent,
-                };
-            }
-
-            _openButton = createDropDownItem("Open", []);
-            _openButton.Click += (sender, e) =>
-            {
-                if (_currentDialog != null)
+                if (_currentRomDialog != null)
                     return;
 
                 var window = NativeWindow.FromHandle(Window.Handle);
@@ -148,15 +181,15 @@ namespace stasisEmulator
                 string path = "";
                 var t = new Thread(() =>
                 {
-                    _currentDialog = new()
+                    _currentRomDialog = new()
                     {
                         Title = "Open ROM",
                         Filter = "NES ROM files (*.nes)|*.nes|All files (*.*)|*.*"
                     };
 
-                    var result = _currentDialog.ShowDialog(window);
-                    path = _currentDialog.FileName;
-                    _currentDialog = null;
+                    var result = _currentRomDialog.ShowDialog(window);
+                    path = _currentRomDialog.FileName;
+                    _currentRomDialog = null;
 
                     if (result == DialogResult.Cancel)
                         return;
@@ -171,59 +204,47 @@ namespace stasisEmulator
                 t.Start();
             };
 
-            _traceloggerButton = createDropDownItem("Trace Logger", []);
-            _traceloggerButton.Click += (sender, e) =>
+            _openTasButton = CreateDropDownItem("Open");
+            _openTasButton.Click += (sender, e) =>
             {
-                if (_tracelogger != null)
-                {
-                    _tracelogger.Focus();
+                if (_currentTasDialog != null)
                     return;
-                }
 
-                _tracelogger = new TraceLogWindow(_nes, GraphicsDevice, 1280, 720);
-                _tracelogger.WindowClosed += (sender, e) => { _tracelogger = null; };
+                var window = NativeWindow.FromHandle(Window.Handle);
+
+                string path = "";
+                var t = new Thread(() =>
+                {
+                    _currentTasDialog = new()
+                    {
+                        Title = "Open Tas File",
+                        Filter = "NES TAS files (*.fm2)|*.fm2|All files (*.*)|*.*"
+                    };
+
+                    var result = _currentTasDialog.ShowDialog(window);
+                    path = _currentTasDialog.FileName;
+                    _currentTasDialog = null;
+
+                    if (result == DialogResult.Cancel)
+                        return;
+
+                    if (path == "")
+                        return;
+
+                    TryLoadTas(path);
+                });
+
+                t.SetApartmentState(ApartmentState.STA);
+                t.Start();
             };
 
-            _memoryViewerButton = createDropDownItem("Memory Viewer", []);
-            _memoryViewerButton.Click += (sender, e) =>
-            {
-                if ( _memoryViewer != null)
-                {
-                    _memoryViewer.Focus();
-                    return;
-                }
+            _tasRestart = CreateDropDownItem("Restart");
+            _tasRestart.Click += (sender, e) => { _emulatorCore.RestartTas(); };
 
-                _memoryViewer = new MemoryViewerWindow(_nes, GraphicsDevice, 1280, 720);
-                _memoryViewer.WindowClosed += (sender, e) => { _memoryViewer = null; };
-            };
+            _tasStop = CreateDropDownItem("Stop");
+            _tasStop.Click += (sender, e) => { _emulatorCore.StopTas(); };
 
-            _patternViewerButton = createDropDownItem("Pattern Viewer", []);
-            _patternViewerButton.Click += (sender, e) =>
-            {
-                if (_patternViewer != null)
-                {
-                    _patternViewer.Focus();
-                    return;
-                }
-
-                _patternViewer = new PatternViewerWindow(_nes, GraphicsDevice, 1280, 720);
-                _patternViewer.WindowClosed += (sender, e) => { _patternViewer = null; };
-            };
-
-            _nametableViewerButton = createDropDownItem("Nametable Viewer", []);
-            _nametableViewerButton.Click += (sender, e) =>
-            {
-                if (_nametableViewer != null)
-                {
-                    _nametableViewer.Focus();
-                    return;
-                }
-
-                _nametableViewer = new NametableViewerWindow(_nes, GraphicsDevice, 1080, 1080);
-                _nametableViewer.WindowClosed += (sender, e) => { _nametableViewer = null; };
-            };
-
-            _showFrameTimeButton = createDropDownItem("Show Frame Time", []);
+            _showFrameTimeButton = CreateDropDownItem("Show Frame Time");
             _showFrameTimeButton.Click += (sender, e) => _mainDisplay.OutputFrameTime = !_mainDisplay.OutputFrameTime;
             
 
@@ -248,15 +269,13 @@ namespace stasisEmulator
                 };
             }
 
+            _debugDropdown = createTopItem("Debug", []);
+
             _mainWindow = new UIWindow(Window, GraphicsDevice, [
                 new UIRectangle([
-                    createTopItem("File", [_openButton]),
-                    createTopItem("Debug", [
-                        _traceloggerButton,
-                        _memoryViewerButton,
-                        _patternViewerButton,
-                        _nametableViewerButton,
-                    ]),
+                    createTopItem("File", [_openRomButton]),
+                    createTopItem("Tas", [_openTasButton, _tasRestart, _tasStop]),
+                    _debugDropdown,
                     createTopItem("View", [_showFrameTimeButton]),
                     //TODO: PLS MAKE A GITHUB REPO
 
@@ -295,11 +314,26 @@ namespace stasisEmulator
             };
 
             InputManager.MainWindow = _mainWindow;
+
+            var path = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
+
+            path += @"\Roms\nes-test-roms-master\AccuracyCoin.nes";
+            //path += @"\Roms\nes-test-roms-master\ppu_read_buffer\test_ppu_read_buffer.nes";
+            //path += @"\Roms\Best NES Games\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
+            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. 3 (USA) (Rev 1).nes";
+            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes";
+            //path += @"\Roms\Best NES Games\Tetris\Tetris (USA).nes";
+            //path += @"\Roms\Best NES Games\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
+            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\05-nmi_timing.nes";
+            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\06-suppression.nes";
+            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\07-nmi_on_timing.nes";
+
+            TryLoadRom(path);
         }
 
         protected override void OnExiting(object sender, ExitingEventArgs args)
         {
-            _nes.Apu.IsRunning = false;
+            _emulatorCore.Unload();
         }
 
         protected override void Update(GameTime gameTime)
@@ -308,7 +342,7 @@ namespace stasisEmulator
             InputManager.Update();
             UIWindow.UpdateWindows(gameTime);
             UIMenuItem.StaticUpdate(gameTime);
-            _nes.RunFrame();
+            _emulatorCore?.RunFrame();
 
             base.Update(gameTime);
         }

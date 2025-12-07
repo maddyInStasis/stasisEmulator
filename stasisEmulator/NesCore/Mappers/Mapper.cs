@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace stasisEmulator.NesConsole.Mappers
+namespace stasisEmulator.NesCore.Mappers
 {
     public abstract class Mapper
     {

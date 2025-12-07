@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace stasisEmulator.NesConsole
+namespace stasisEmulator.NesCore
 {
     //since we only overwrite data rather than freeing it, this shouldn't annoy the gc (as much)
     public class TraceLogColumn<T>(int capacity)

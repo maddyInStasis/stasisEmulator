@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace stasisEmulator.NesConsole.Mappers
+namespace stasisEmulator.NesCore.Mappers
 {
     public static class MapperFactory
     {

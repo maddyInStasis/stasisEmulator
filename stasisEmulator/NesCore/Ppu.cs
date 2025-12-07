@@ -1,7 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
 
-namespace stasisEmulator.NesConsole
+namespace stasisEmulator.NesCore
 {
     public class Ppu
     {
@@ -34,28 +34,23 @@ namespace stasisEmulator.NesConsole
         public bool EnableNMI;
 
         //PPUMASK
+        public bool Grayscale;
         public bool ShowLeftBG;
         public bool ShowLeftSprites;
         public bool RenderBG;
         public bool RenderSprites;
+        public bool EmphasizeRed;
+        public bool EmphasizeGreen;
+        public bool EmphasizeBlue;
 
         //PPUSTATUS
         public bool VBlank;
+        public bool VBlankDelayed;
         private bool _vblankRead = false;
         public bool Sprite0Hit;
         public bool SpriteOverflow;
 
         public readonly Color[] Palette = new Color[64];
-
-        //save an array lookup when outputting colors by storing the colors directly
-        //(PaletteRamColors[i] is equivalent to Palette[PaletteRam[i]])
-        public readonly Color[] PaletteRamColors = new Color[64];
-
-        //is the current background color the same as when the frame began?
-        //if so, skip outputting transparent pixels, as the output buffer is filled with the bg color ahead of time
-        //limited testing, unclear if this is performant when the background barely shows through, or the bg color changes
-        //(the overall effect is small, regardless)
-        private bool _backgroundColorOkay = true;
 
         public const int PixelWidth = 256;
         public const int PixelHeight = 240;
@@ -73,6 +68,7 @@ namespace stasisEmulator.NesConsole
         public const ushort PPUDATA   = 0x2007;
 
         private readonly Nes _nes;
+        private readonly Cpu _cpu;
         public bool _reset;
 
         private const ushort CoarseXMask = 0b11111;
@@ -94,11 +90,13 @@ namespace stasisEmulator.NesConsole
                 _ioBusDecayTimer = BusDecayPeriod;
             }
         }
+
         //this is all completely arbitrary, there's probably a better way to emulate this
         private ushort _ioBusDecayTimer;
         private const ushort BusDecayPeriod = 5000;
         private byte _ioBusDecayIndex;
         private readonly byte[] _ioBusDecayOrder = [1, 3, 5, 6, 0, 4, 7, 2];
+
         private byte _readBuffer;
 
         private byte _spriteEvalTemp;
@@ -146,6 +144,7 @@ namespace stasisEmulator.NesConsole
         public Ppu(Nes nes)
         {
             _nes = nes;
+            _cpu = nes.Cpu;
 
             int i = 0;
             for (int j = 0; j < 64; j++)
@@ -180,8 +179,8 @@ namespace stasisEmulator.NesConsole
         {
             if (address < 0x3F00)
             {
-                _nes.Cartridge?.ReadPpu(address, ref dataBus);
-                _nes.Cartridge?.OnPpuAddressUpdate(address);
+                _nes.Mapper?.ReadPpu(address, ref dataBus);
+                _nes.Mapper?.OnPpuAddressUpdate(address);
             }
             else
             {
@@ -195,9 +194,9 @@ namespace stasisEmulator.NesConsole
         }
         public byte DebugRead(ushort address)
         {
-            if (address < 0x3F00 && _nes.Cartridge != null)
+            if (address < 0x3F00 && _nes.Mapper != null)
             {
-                return _nes.Cartridge.DebugReadPpu(address);
+                return _nes.Mapper.DebugReadPpu(address);
             }
             else
             {
@@ -214,31 +213,14 @@ namespace stasisEmulator.NesConsole
         {
             if (v < 0x3F00)
             {
-                _nes.Cartridge?.WritePpu(address, dataBus);
+                _nes.Mapper?.WritePpu(address, dataBus);
             }
             else
             {
-                int colorIndex = dataBus & 63;
-
                 if ((address & 3) == 0)
-                {
-                    if ((address & 0x0F) == 0)
-                    {
-                        _backgroundColorOkay = false;
-                        for (int i = 0; i < 32; i += 4)
-                        {
-                            PaletteRamColors[i] = Palette[colorIndex];
-                        }
-                    }
-
                     PaletteRam[address & 0x0F] = dataBus;
-                    PaletteRamColors[address & 0x0F] = Palette[colorIndex];
-                }
                 else
-                {
                     PaletteRam[address & 0x1F] = dataBus;
-                    PaletteRamColors[address & 0x1F] = Palette[colorIndex];
-                }
             }
         }
 
@@ -254,6 +236,7 @@ namespace stasisEmulator.NesConsole
                     IoBus |= (byte)(Sprite0Hit ? 0x40 : 0);
                     IoBus |= (byte)(VBlank ? 0x80 : 0);
                     VBlank = false;
+                    VBlankDelayed = false;
                     w = false;
                     _vblankRead = true;
                     break;
@@ -281,6 +264,8 @@ namespace stasisEmulator.NesConsole
                         byte val = IoBus;
                         ReadVram(v, ref _readBuffer);
                         Read(v, ref val);
+                        if (Grayscale)
+                            val &= 0x30;
                         IoBus = val;
                     }
                     v += (ushort)(VramInc32 ? 32 : 1);
@@ -314,10 +299,14 @@ namespace stasisEmulator.NesConsole
                     if (_reset)
                         break;
 
+                    Grayscale = (IoBus & 1) != 0;
                     ShowLeftBG = (IoBus & 2) != 0;
                     ShowLeftSprites = (IoBus & 4) != 0;
                     RenderBG = (IoBus & 8) != 0;
                     RenderSprites = (IoBus & 16) != 0;
+                    EmphasizeRed = (IoBus & 32) != 0;
+                    EmphasizeGreen = (IoBus & 64) != 0;
+                    EmphasizeBlue = (IoBus & 128) != 0;
                     break;
                 case OAMADDR:
                     OamAddress = IoBus;
@@ -347,9 +336,6 @@ namespace stasisEmulator.NesConsole
                     w = !w;
                     break;
                 case PPUADDR:
-                    if (_reset)
-                        break;
-
                     if (!w)
                     {
                         //shift value into high byte, mask out uppper two bits, & with lower byte of t
@@ -373,7 +359,7 @@ namespace stasisEmulator.NesConsole
 
         public byte ReadVram(ushort address, ref byte dataBus)
         {
-            _nes.Cartridge?.ReadPpu(address, ref dataBus);
+            _nes.Mapper?.ReadPpu(address, ref dataBus);
             return dataBus;
         }
 
@@ -381,26 +367,31 @@ namespace stasisEmulator.NesConsole
         {
             EmulateBusDecay();
 
-            if (Dot == 1 && Scanline == 241)
+            if (Dot == 1)
             {
-                if (!_vblankRead)
-                    VBlank = true;
-                FrameComplete = true;
-                _oddFrame = !_oddFrame;
+                if (Scanline == 241)
+                {
+                    if (!_vblankRead)
+                    {
+                        VBlank = true;
+                        VBlankDelayed = true;
+                    }
+
+                    FrameComplete = true;
+                    _oddFrame = !_oddFrame;
+                }
+                if (Scanline == 261)
+                {
+                    VBlank = false;
+                    Sprite0Hit = false;
+                    SpriteOverflow = false;
+                    _reset = false;
+                }
             }
+            if (Dot == 10 && Scanline == 261)
+                VBlankDelayed = false;
 
             _vblankRead = false;
-            _nes.Cpu.NmiLine = EnableNMI && VBlank;
-
-            if (Dot == 1 && Scanline == 261)
-            {
-                VBlank = false;
-                Sprite0Hit = false;
-                SpriteOverflow = false;
-                _reset = false;
-                _backgroundColorOkay = true;
-                Array.Fill(OutputBuffer, PaletteRamColors[0]);
-            }
 
             DoSpriteEvaluation();
             DoBgRead();
@@ -472,9 +463,28 @@ namespace stasisEmulator.NesConsole
                 byte palette = drawSprite ? spritePalette : bgPalette;
                 byte paletteIndex = drawSprite ? spritePaletteIndex : bgPaletteIndex;
 
-                //maybe instead of calculating the index based on the scanline and dot, we could just increment an index variable?
-                if (paletteIndex != 0 || !_backgroundColorOkay)
-                    OutputBuffer[Scanline * 256 + (Dot - 1)] = PaletteRamColors[(palette * 4 + paletteIndex) & 63];
+                byte colorIndex = PaletteRam[(byte)((palette << 2) | paletteIndex)];
+                if (Grayscale)
+                    colorIndex &= 0x30;
+
+                var color = Palette[colorIndex];
+                if (EmphasizeRed)
+                {
+                    color.G = (byte)(color.G * 0.85f);
+                    color.B = (byte)(color.B * 0.85f);
+                }
+                if (EmphasizeGreen)
+                {
+                    color.R = (byte)(color.R * 0.85f);
+                    color.B = (byte)(color.B * 0.85f);
+                }
+                if (EmphasizeBlue)
+                {
+                    color.R = (byte)(color.R * 0.85f);
+                    color.G = (byte)(color.G * 0.85f);
+                }
+
+                OutputBuffer[Scanline * 256 + (Dot - 1)] = color;
             }
         
             Dot++;
