@@ -25,7 +25,6 @@ namespace stasisEmulator.NesCore
             Pause,
             Modifier,
             Reset,
-            InstructionAdvance
         }
 
         public ConsoleType ConsoleType { get => ConsoleType.Nes; }
@@ -76,7 +75,6 @@ namespace stasisEmulator.NesCore
             { EmulatorControl.Pause, new([Keys.Escape]) },
             { EmulatorControl.Modifier, new([Keys.LeftControl]) },
             { EmulatorControl.Reset, new([Keys.R]) },
-            { EmulatorControl.InstructionAdvance, new([Keys.T])},
         }, null);
 
         public Nes(GraphicsDevice graphicsDevice)
