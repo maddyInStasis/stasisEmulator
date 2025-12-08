@@ -301,7 +301,7 @@ namespace stasisEmulator
 
         protected override void OnExiting(object sender, ExitingEventArgs args)
         {
-            _emulatorCore.Unload();
+            _emulatorCore?.Unload();
         }
 
         protected override void Update(GameTime gameTime)
