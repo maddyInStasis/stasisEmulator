@@ -4,8 +4,8 @@ This emulator is a personal project of mine. It currently only supports NES ROMs
 
 ## Controls (Will add mapping in the future)
 Dpad - Arrow Keys<br>
-A - S<br>
 B - A<br>
+A - S<br>
 Select - Q<br>
 Start - W<br><br>
 
