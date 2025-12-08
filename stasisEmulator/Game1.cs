@@ -3,16 +3,12 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using stasisEmulator.UI.Controls;
 using stasisEmulator.NesCore;
-using stasisEmulator.NesCore.Mappers;
 using stasisEmulator.Input;
 using System;
 using System.IO;
 using System.Windows.Forms;
 using System.Threading;
-using stasisEmulator.UI.Windows;
 using System.Collections.Generic;
-using System.Diagnostics;
-using stasisEmulator.NesCore.Input;
 
 namespace stasisEmulator
 {
@@ -159,6 +155,7 @@ namespace stasisEmulator
         }
         private static UIMenuItem CreateDropDownItem(string header) { return CreateDropDownItem(header, []); }
 
+        //TODO: create styles
         //TODO: create UITextButton
         //TODO: make this into its own window class too
         private void CreateUI()
@@ -283,14 +280,6 @@ namespace stasisEmulator
                     //see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository
                     //if clicking a few buttons to load the file becomes too cumbersome, perhaps you could store the paths of recent files
                     //(basically either add an "Open Recent" menuitem or just copy what Mesen does)
-
-                    //READ ME!!!!!!!!!!!!!!
-                    //TODO: create memory viewer to figure out wtf is happening to the stack during the b flag test
-                    //manually modifying the code to enable/disable debug views is getting pretty impractical, so now would be a good time to add secondary windows
-                    //(and also obviously the instruction advance should belong to the trace viewer and not be triggered by a button press, add a dialog or something
-                    //to advance specified amount)
-                    //add debug cpu read and ppu read functions
-                    //also add dmc!!!!!
                 ])
                 {
                     Width = UISize.Grow(),
@@ -315,15 +304,16 @@ namespace stasisEmulator
 
             InputManager.MainWindow = _mainWindow;
 
+            //this just picks the startup rom for faster debugging of specific roms
             var path = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
 
             path += @"\Roms\nes-test-roms-master\AccuracyCoin.nes";
             //path += @"\Roms\nes-test-roms-master\ppu_read_buffer\test_ppu_read_buffer.nes";
-            //path += @"\Roms\Best NES Games\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
-            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. 3 (USA) (Rev 1).nes";
-            //path += @"\Roms\Best NES Games\Mario\Super Mario Bros. (World).nes";
-            //path += @"\Roms\Best NES Games\Tetris\Tetris (USA).nes";
-            //path += @"\Roms\Best NES Games\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
+            //path += @"\Roms\Nes\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
+            //path += @"\Roms\Nes\Mario\Super Mario Bros. 3 (USA) (Rev 1).nes";
+            //path += @"\Roms\Nes\Mario\Super Mario Bros. (World).nes";
+            //path += @"\Roms\Nes\Tetris\Tetris (USA).nes";
+            //path += @"\Roms\Nes\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
             //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\05-nmi_timing.nes";
             //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\06-suppression.nes";
             //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\07-nmi_on_timing.nes";

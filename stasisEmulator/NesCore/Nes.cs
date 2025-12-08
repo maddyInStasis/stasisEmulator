@@ -115,7 +115,8 @@ namespace stasisEmulator.NesCore
             if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
             {
                 Reset();
-                Tas?.Restart();
+                if (Tas != null && Tas.Running)
+                    Tas.Restart();
             }
 
             if (Paused && !_advance)
@@ -127,7 +128,7 @@ namespace stasisEmulator.NesCore
                 {
                     Tas.Stop();
                 }
-                else
+                else if (Tas.Running)
                 {
                     Tas.Started = true;
 
@@ -281,12 +282,12 @@ namespace stasisEmulator.NesCore
         public void RestartTas()
         {
             Power();
-            Tas.Restart();
+            Tas?.Restart();
         }
 
         public void StopTas()
         {
-            Tas.Stop();
+            Tas?.Stop();
         }
 
         private void ShowTraceLogger()
