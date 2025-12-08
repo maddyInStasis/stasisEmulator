@@ -274,12 +274,6 @@ namespace stasisEmulator
                     createTopItem("Tas", [_openTasButton, _tasRestart, _tasStop]),
                     _debugDropdown,
                     createTopItem("View", [_showFrameTimeButton]),
-                    //TODO: PLS MAKE A GITHUB REPO
-
-                    //erm wait, since i have commits stored locally, will those file path strings show up if i upload to github?
-                    //see: https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository
-                    //if clicking a few buttons to load the file becomes too cumbersome, perhaps you could store the paths of recent files
-                    //(basically either add an "Open Recent" menuitem or just copy what Mesen does)
                 ])
                 {
                     Width = UISize.Grow(),
@@ -303,22 +297,6 @@ namespace stasisEmulator
             };
 
             InputManager.MainWindow = _mainWindow;
-
-            //this just picks the startup rom for faster debugging of specific roms
-            var path = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-
-            path += @"\Roms\nes-test-roms-master\AccuracyCoin.nes";
-            //path += @"\Roms\nes-test-roms-master\ppu_read_buffer\test_ppu_read_buffer.nes";
-            //path += @"\Roms\Nes\Donkey Kong\Donkey Kong (World) (Rev 1).nes";
-            //path += @"\Roms\Nes\Mario\Super Mario Bros. 3 (USA) (Rev 1).nes";
-            //path += @"\Roms\Nes\Mario\Super Mario Bros. (World).nes";
-            //path += @"\Roms\Nes\Tetris\Tetris (USA).nes";
-            //path += @"\Roms\Nes\Zelda\Legend of Zelda, The (USA) (Rev 1).nes";
-            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\05-nmi_timing.nes";
-            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\06-suppression.nes";
-            //path += @"\Roms\nes-test-roms-master\ppu_vbl_nmi\rom_singles\07-nmi_on_timing.nes";
-
-            TryLoadRom(path);
         }
 
         protected override void OnExiting(object sender, ExitingEventArgs args)

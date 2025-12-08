@@ -30,5 +30,4 @@ C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windo
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\FontStashSharp.Rasterizers.StbTrueTypeSharp.dll
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\StbImageSharp.dll
 C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\StbTrueTypeSharp.dll
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\SEGOEUI.TTF
-C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\bin\Debug\net8.0-windows\Content\Fonts\CONSOLA.TTF
+C:\Users\Jacob\source\repos\stasisEmulator\stasisEmulator\obj\Debug\net8.0-windows\stasisEmulator.sourcelink.json
