@@ -20,6 +20,8 @@ namespace stasisEmulator.NesCore.ApuComponents
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
         ];
 
+        public bool SilenceUltrasonicFrequencies = true;
+
         public void Power()
         {
             TimerPeriod = 0;
@@ -45,6 +47,9 @@ namespace stasisEmulator.NesCore.ApuComponents
 
         public byte GetOutputValue()
         {
+            if (Timer < 2 && SilenceUltrasonicFrequencies)
+                return 0;
+
             return TriangleSequence[SequencerPosition];
         }
     }

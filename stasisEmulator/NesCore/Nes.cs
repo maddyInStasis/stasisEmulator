@@ -183,6 +183,9 @@ namespace stasisEmulator.NesCore
 
         private void Clock()
         {
+            //this loop is just how tricnes does it. i was trying to get nmi timing tests to work and was just trying stuff
+            //TODO: uhhhhhhhhhhh idk but this just feels like stealing
+
             MasterClock++;
             if (MasterClock == 24)
             {

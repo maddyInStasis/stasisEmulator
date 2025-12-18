@@ -275,7 +275,6 @@ namespace stasisEmulator.NesCore.Mappers
 
         protected void SelectChrPage(byte destinationPage, int sourcePage, ChrMemoryType memoryType = ChrMemoryType.Default, MemoryAccessType memoryAccess = MemoryAccessType.Default)
         {
-            //TODO: chr page size may depend on the memory type
             ushort startAddress = (ushort)(destinationPage * ChrPageSize);
             ushort endAddress = (ushort)(startAddress + ChrPageSize - 1);
             int sourceOffset = sourcePage * ChrPageSize;

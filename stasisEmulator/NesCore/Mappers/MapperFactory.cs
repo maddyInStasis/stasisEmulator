@@ -20,6 +20,7 @@ namespace stasisEmulator.NesCore.Mappers
                 2 => new UxRom(rom, nes),
                 3 => new Cnrom(rom, nes, false),
                 4 => new Mmc3(rom, nes),
+                7 => new AxRom(rom, nes),
                 155 => new Mmc1(rom, nes, false),
                 185 => new Cnrom(rom, nes, true),
                 _ => throw new Exception($"Mapper {mapper} not implemented.")
