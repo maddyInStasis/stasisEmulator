@@ -47,7 +47,7 @@ namespace stasisEmulator.NesCore.ApuComponents
 
         public byte GetOutputValue()
         {
-            if (Timer < 2 && SilenceUltrasonicFrequencies)
+            if (TimerPeriod < 2 && SilenceUltrasonicFrequencies)
                 return 0;
 
             return TriangleSequence[SequencerPosition];
