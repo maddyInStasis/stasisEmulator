@@ -105,7 +105,7 @@ namespace stasisEmulator.UI.Controls
                             {
                                 int paletteIndex = (lowByte >> (7 - x)) & 1;
                                 paletteIndex += ((highByte >> (7 - x)) & 1) * 2;
-                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0 & 0b111111]];
+                                Color color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? (paletteIndex + palette * 4) : 0 & 0x3F]];
 
                                 int drawX = x + tileX * 8 + (table & 1) * PixelWidth / 2;
                                 int drawY = y + tileY * 8 + (table >> 1) * PixelHeight / 2;

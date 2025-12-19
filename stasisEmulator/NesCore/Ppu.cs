@@ -464,6 +464,7 @@ namespace stasisEmulator.NesCore
                 byte paletteIndex = drawSprite ? spritePaletteIndex : bgPaletteIndex;
 
                 byte colorIndex = PaletteRam[(byte)((palette << 2) | paletteIndex)];
+                colorIndex &= 0x3F;
                 if (Grayscale)
                     colorIndex &= 0x30;
 

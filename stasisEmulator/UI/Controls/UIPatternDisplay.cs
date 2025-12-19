@@ -83,7 +83,7 @@ namespace stasisEmulator.UI.Controls
                                 if (Grayscale)
                                     color = new(paletteIndex * 85, paletteIndex * 85, paletteIndex * 85);
                                 else
-                                    color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? Palette * 4 + paletteIndex : 0]];
+                                    color = Nes.Ppu.Palette[Nes.Ppu.PaletteRam[paletteIndex != 0 ? Palette * 4 + paletteIndex : 0] & 0x3F];
 
                                 SetPixel(x + column * 8 + table * 128, y + row * 8, color);
                             }
