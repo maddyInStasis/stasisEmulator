@@ -28,10 +28,11 @@ namespace stasisEmulator
         void Power();
         void Reset();
 
-        void LoadTas(string path);
-        void RestartTas();
-        void StopTas();
+        void TogglePause();
 
         void Unload();
+
+        SaveState SaveState();
+        void LoadState(SaveState state);
     }
 }

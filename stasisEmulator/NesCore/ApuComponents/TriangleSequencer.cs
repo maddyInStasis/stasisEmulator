@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -51,6 +52,25 @@ namespace stasisEmulator.NesCore.ApuComponents
                 return 0;
 
             return TriangleSequence[SequencerPosition];
+        }
+
+        public TriangleSequencerState SaveState()
+        {
+            return new()
+            {
+                TimerPeriod = TimerPeriod,
+                Timer = Timer,
+
+                SequencerPosition = SequencerPosition,
+            };
+        }
+
+        public void LoadState(TriangleSequencerState state)
+        {
+            TimerPeriod = state.TimerPeriod;
+            Timer = state.Timer;
+
+            SequencerPosition = state.SequencerPosition;
         }
     }
 }

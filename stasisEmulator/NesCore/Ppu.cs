@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using stasisEmulator.NesCore.SaveStates;
 using System;
 
 namespace stasisEmulator.NesCore
@@ -843,6 +844,136 @@ namespace stasisEmulator.NesCore
             {
                 _spriteEvalOverflowed = true;
             }
+        }
+
+        public PpuState SaveState()
+        {
+            byte[] paletteRam = new byte[PaletteRam.Length];
+            byte[] oam = new byte[Oam.Length];
+            byte[] secondaryOam = new byte[SecondaryOam.Length];
+
+            byte[] shiftSpritePatternLow = new byte[_shiftSpritePatternLow.Length];
+            byte[] shiftSpritePatternHigh = new byte[_shiftSpritePatternHigh.Length];
+
+            byte[] spriteAttribute = new byte[_spriteAttribute.Length];
+            byte[] spriteTileIndex = new byte[_spriteTileIndex.Length];
+            byte[] spriteXPosition = new byte[_spriteXPosition.Length];
+            byte[] spriteYPosition = new byte[_spriteYPosition.Length];
+
+            Array.Copy(PaletteRam, paletteRam, PaletteRam.Length);
+            Array.Copy(Oam, oam, Oam.Length);
+            Array.Copy(SecondaryOam, secondaryOam, SecondaryOam.Length);
+
+            Array.Copy(_shiftSpritePatternLow, shiftSpritePatternLow, _shiftSpritePatternLow.Length);
+            Array.Copy(_shiftSpritePatternHigh, shiftSpritePatternHigh, _shiftSpritePatternHigh.Length);
+
+            Array.Copy(_spriteAttribute, spriteAttribute, _spriteAttribute.Length);
+            Array.Copy(_spriteTileIndex, spriteTileIndex, _spriteTileIndex.Length);
+            Array.Copy(_spriteXPosition, spriteXPosition, _spriteXPosition.Length);
+            Array.Copy(_spriteYPosition, spriteYPosition, _spriteYPosition.Length);
+
+            return new PpuState()
+            {
+                v = v, t = t, x = x, w = w,
+                
+                OamAddress = OamAddress,
+                _secondaryOamAddress = _secondaryOamAddress,
+                SecondaryOamFull = SecondaryOamFull,
+
+                PaletteRam = paletteRam,
+                Oam = oam,
+                SecondaryOam = secondaryOam,
+
+                Dot = Dot, Scanline = Scanline,
+                _oddFrame = _oddFrame, FrameComplete = FrameComplete,
+
+                VramInc32 = VramInc32, 
+                SpriteSecondPatternTable = SpriteSecondPatternTable, BackgroundSecondPatternTable = BackgroundSecondPatternTable,
+                Use8x16Sprites = Use8x16Sprites,
+                EnableNMI = EnableNMI,
+
+                Grayscale = Grayscale,
+                ShowLeftBG = ShowLeftBG, ShowLeftSprites = ShowLeftSprites,
+                RenderBG = RenderBG, RenderSprites = RenderSprites,
+                EmphasizeRed = EmphasizeRed, EmphasizeGreen = EmphasizeGreen, EmphasizeBlue = EmphasizeBlue,
+
+                VBlank = VBlank, VBlankDelayed = VBlankDelayed, _vblankRead = _vblankRead,
+                Sprite0Hit = Sprite0Hit, SpriteOverflow = SpriteOverflow,
+
+                _reset = _reset,
+
+                _ioBus = _ioBus,
+                _ioBusDecayTimer = _ioBusDecayTimer,
+                _ioBusDecayIndex = _ioBusDecayIndex,
+
+                _readBuffer = _readBuffer,
+
+                _spriteEvalTemp = _spriteEvalTemp, _spriteAddressBus = _spriteAddressBus, _spriteEvalTick = _spriteEvalTick,
+                _scanlineContainsSprite0 = _scanlineContainsSprite0, _nextScanlineContainsSprite0 = _nextScanlineContainsSprite0,
+                _spriteEvalOverflowed = _spriteEvalOverflowed, _secondaryOamSize = _secondaryOamSize, _currentSpriteCount = _currentSpriteCount,
+
+                _shiftSpritePatternLow = shiftSpritePatternLow, _shiftSpritePatternHigh = shiftSpritePatternHigh,
+                _spriteAttribute = spriteAttribute, _spriteTileIndex = spriteTileIndex, _spriteXPosition = spriteXPosition, _spriteYPosition = spriteYPosition,
+
+                _bgAddressBus = _bgAddressBus, _fetchTemp = _fetchTemp, _fetchTileIndex = _fetchTileIndex,
+
+                _fetchBgPatternLow = _fetchBgPatternLow, _fetchBgPatternHigh = _fetchBgPatternHigh, _fetchBgAttribute = _fetchBgAttribute,
+                _shiftBgPatternLow = _shiftBgPatternLow, _shiftBgPatternHigh = _shiftBgPatternHigh, _shiftBgAttributeLow = _shiftBgAttributeLow, _shiftBgAttributeHigh = _shiftBgAttributeHigh,
+            };
+        }
+
+        public void LoadState(PpuState state)
+        {
+            v = state.v; t = state.t; x = state.x; w = state.w;
+
+            OamAddress = state.OamAddress;
+            _secondaryOamAddress = state._secondaryOamAddress;
+            SecondaryOamFull = state.SecondaryOamFull;
+
+            Array.Copy(state.PaletteRam, PaletteRam, PaletteRam.Length);
+            Array.Copy(state.Oam, Oam, Oam.Length);
+            Array.Copy(state.SecondaryOam, SecondaryOam, SecondaryOam.Length);
+
+            Dot = state.Dot; Scanline = state.Scanline;
+            _oddFrame = state._oddFrame; FrameComplete = state.FrameComplete;
+
+            VramInc32 = state.VramInc32;
+            SpriteSecondPatternTable = state.SpriteSecondPatternTable; BackgroundSecondPatternTable = state.BackgroundSecondPatternTable;
+            Use8x16Sprites = state.Use8x16Sprites;
+            EnableNMI = state.EnableNMI;
+
+            Grayscale = state.Grayscale;
+            ShowLeftBG = state.ShowLeftBG; ShowLeftSprites = state.ShowLeftSprites;
+            RenderBG = state.RenderBG; RenderSprites = state.RenderSprites;
+            EmphasizeRed = state.EmphasizeRed; EmphasizeBlue = state.EmphasizeBlue; EmphasizeGreen = state.EmphasizeGreen;
+
+            VBlank = state.VBlank; VBlankDelayed = state.VBlankDelayed; _vblankRead = state._vblankRead;
+            Sprite0Hit = state.Sprite0Hit; SpriteOverflow = state.SpriteOverflow;
+
+            _reset = state._reset;
+
+            _ioBus = state._ioBus;
+            _ioBusDecayTimer = state._ioBusDecayTimer;
+            _ioBusDecayIndex = state._ioBusDecayIndex;
+
+            _readBuffer = state._readBuffer;
+
+            _spriteEvalTemp = state._spriteEvalTemp; _spriteAddressBus = state._spriteAddressBus; _spriteEvalTick = state._spriteEvalTick;
+            _scanlineContainsSprite0 = state._scanlineContainsSprite0; _nextScanlineContainsSprite0 = state._nextScanlineContainsSprite0;
+            _spriteEvalOverflowed = state._spriteEvalOverflowed; _secondaryOamSize = state._secondaryOamSize; _currentSpriteCount = state._currentSpriteCount;
+
+            Array.Copy(state._shiftSpritePatternLow, _shiftSpritePatternLow, _shiftSpritePatternLow.Length);
+            Array.Copy(state._shiftSpritePatternHigh, _shiftSpritePatternHigh, _shiftSpritePatternHigh.Length);
+
+            Array.Copy(state._spriteAttribute, _spriteAttribute, _spriteAttribute.Length);
+            Array.Copy(state._spriteTileIndex, _spriteTileIndex, _spriteTileIndex.Length);
+            Array.Copy(state._spriteXPosition, _spriteXPosition, _spriteXPosition.Length);
+            Array.Copy(state._spriteYPosition, _spriteYPosition, _spriteYPosition.Length);
+
+            _bgAddressBus = state._bgAddressBus; _fetchTemp = state._fetchTemp; _fetchTileIndex = state._fetchTileIndex;
+
+            _fetchBgPatternLow = state._fetchBgPatternLow; _fetchBgPatternHigh = state._fetchBgPatternHigh; _fetchBgAttribute = state._fetchBgAttribute;
+            _shiftBgPatternLow = state._shiftBgPatternLow; _shiftBgPatternHigh = state._shiftBgPatternHigh; _shiftBgAttributeLow = state._shiftBgAttributeLow; _shiftBgAttributeHigh = state._shiftBgAttributeHigh;
         }
     }
 }

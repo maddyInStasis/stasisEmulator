@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -46,6 +47,27 @@ namespace stasisEmulator.NesCore.ApuComponents
         public bool GateOutput()
         {
             return ((Sequences[DutyCycle] << SequencerPosition) & 0x80) != 0;
+        }
+
+        public PulseSequencerState SaveState()
+        {
+            return new()
+            {
+                TimerPeriod = TimerPeriod,
+                Timer = Timer,
+
+                DutyCycle = DutyCycle,
+                SequencerPosition = SequencerPosition,
+            };
+        }
+
+        public void LoadState(PulseSequencerState state)
+        {
+            TimerPeriod = state.TimerPeriod;
+            Timer = state.Timer;
+
+            DutyCycle = state.DutyCycle;
+            SequencerPosition = state.SequencerPosition;
         }
     }
 }

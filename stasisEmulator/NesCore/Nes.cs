@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using stasisEmulator.UI.Windows;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework;
+using stasisEmulator.NesCore.SaveStates;
 
 namespace stasisEmulator.NesCore
 {
@@ -18,13 +19,6 @@ namespace stasisEmulator.NesCore
             Instructions,
             Cycles,
             VBlank
-        }
-
-        private enum EmulatorControl
-        {
-            Pause,
-            Modifier,
-            Reset,
         }
 
         public ConsoleType ConsoleType { get => ConsoleType.Nes; }
@@ -45,8 +39,8 @@ namespace stasisEmulator.NesCore
         public int ApuClock;
 
         public readonly Cpu Cpu;
-        public readonly Apu Apu;
         public readonly Ppu Ppu;
+        public readonly Apu Apu;
 
         public int ViewportWidth { get => 256; }
         public int ViewportHeight { get => 240; }
@@ -60,8 +54,6 @@ namespace stasisEmulator.NesCore
         public InputDevice Player1Controller { get; set; }
         public InputDevice Player2Controller { get; set; }
 
-        public Tas Tas { get; set; }
-
         //warning: will overflow after 9 billion years
         public ulong FrameCount { get; private set; }
         public bool Paused { get; set; } = false;
@@ -70,12 +62,6 @@ namespace stasisEmulator.NesCore
         private AdvanceType _advanceType;
         private ulong _advanceTarget = 0;
         private bool _prevVblank = false;
-
-        private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(bindings: new(){
-            { EmulatorControl.Pause, new([Keys.Escape]) },
-            { EmulatorControl.Modifier, new([Keys.LeftControl]) },
-            { EmulatorControl.Reset, new([Keys.R]) },
-        }, null);
 
         public Nes(GraphicsDevice graphicsDevice)
         {
@@ -95,49 +81,8 @@ namespace stasisEmulator.NesCore
 
         public void RunFrame()
         {
-            _emulatorControls.UpdateInputStates();
-
-            if (_emulatorControls.WasBindJustPressed(EmulatorControl.Pause))
-            {
-                if (_advance)
-                {
-                    _advance = false;
-                    Paused = true;
-                }
-                else
-                {
-                    Paused = !Paused;
-                }
-            }
-
-            if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
-            {
-                Reset();
-                if (Tas != null && Tas.Running)
-                    Tas.Restart();
-            }
-
             if (Paused && !_advance)
                 return;
-
-            if (Tas != null)
-            {
-                if (Tas.Completed)
-                {
-                    Tas.Stop();
-                }
-                else if (Tas.Running)
-                {
-                    Tas.Started = true;
-
-                    var frame = Tas.CurrentFrame;
-
-                    if (frame.Power)
-                        Power();
-                    if (frame.Reset)
-                        Reset();
-                }
-            }
 
             Apu.ApuPreFrame();
             
@@ -177,8 +122,6 @@ namespace stasisEmulator.NesCore
 
             Ppu.FrameComplete = false;
             FrameCount++;
-            if (Tas != null && Tas.Started)
-                Tas.FrameNumber++;
         }
 
         private void Clock()
@@ -253,42 +196,25 @@ namespace stasisEmulator.NesCore
             Apu.Reset();
         }
 
+        public void TogglePause()
+        {
+            if (_advance)
+            {
+                _advance = false;
+                Paused = true;
+            }
+            else
+            {
+                Paused = !Paused;
+            }
+        }
+
         public void LoadRom(string path)
         {
             var rom = RomLoader.LoadRom(path);
             var mapper = MapperFactory.CreateMapper(rom, this);
             Mapper = mapper;
-            Tas = null;
             Power();
-        }
-
-        public void LoadTas(string path)
-        {
-            var tas = TasLoader.LoadTas(path);
-            Tas = tas;
-            Player1Controller = tas.P0Type switch
-            {
-                ControllerType.Standard => new StandardController(this, 0),
-                _ => null,
-            };
-            Player2Controller = tas.P1Type switch
-            {
-                ControllerType.Standard => new StandardController(this, 1),
-                _ => null,
-            };
-            Power();
-            tas.Restart();
-        }
-
-        public void RestartTas()
-        {
-            Power();
-            Tas?.Restart();
-        }
-
-        public void StopTas()
-        {
-            Tas?.Stop();
         }
 
         private void ShowTraceLogger()
@@ -339,6 +265,52 @@ namespace stasisEmulator.NesCore
         public void Unload()
         {
             Apu.IsRunning = false;
+        }
+
+        public SaveState SaveState()
+        {
+            NesState state = new()
+            {
+                MasterClock = MasterClock,
+                CpuClock = CpuClock,
+                PpuClock = PpuClock,
+                ApuClock = ApuClock,
+
+                CpuState = Cpu.SaveState(),
+                PpuState = Ppu.SaveState(),
+                ApuState = Apu.SaveState(),
+
+                MapperState = Mapper?.SaveState(),
+
+                Player1ControllerState = Player1Controller?.SaveState(),
+                Player2ControllerState = Player2Controller?.SaveState(),
+            };
+
+            return state;
+        }
+
+        public void LoadState(SaveState state)
+        {
+            if (state is not NesState)
+                return;
+
+            var nesState = state as NesState;
+
+            MasterClock = nesState.MasterClock;
+            CpuClock = nesState.CpuClock;
+            PpuClock = nesState.PpuClock;
+            ApuClock = nesState.ApuClock;
+
+            Cpu.LoadState(nesState.CpuState);
+            Ppu.LoadState(nesState.PpuState);
+            Apu.LoadState(nesState.ApuState);
+
+            Mapper?.LoadState(nesState.MapperState);
+
+            Player1Controller?.LoadState(nesState.Player1ControllerState);
+            Player2Controller?.LoadState(nesState.Player2ControllerState);
+
+            _advance = false;
         }
     }
 }

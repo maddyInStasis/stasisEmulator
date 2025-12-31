@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Input;
 using stasisEmulator.Input;
+using stasisEmulator.NesCore.SaveStates.Input;
 
 namespace stasisEmulator.NesCore.Input
 {
@@ -61,13 +62,6 @@ namespace stasisEmulator.NesCore.Input
 
         private void FillShiftRegister()
         {
-            if (_nes.Tas != null && _nes.Tas.Running)
-            {
-                var frame = _nes.Tas.CurrentFrame;
-                _shiftRegister = PlayerIndex == 0 ? frame.P0Inputs : frame.P1Inputs;
-                return;
-            }
-
             _inputs.UpdateInputStates();
             _shiftRegister = 0;
 
@@ -76,6 +70,30 @@ namespace stasisEmulator.NesCore.Input
                 NesButton button = (NesButton)i;
                 _shiftRegister |= (byte)((_inputs.IsBindPressed(button) ? 1 : 0) << i);
             }
+        }
+
+        public override InputDeviceState SaveState()
+        {
+            return new StandardControllerState()
+            {
+                _strobe = _strobe,
+                _shiftRegister = _shiftRegister,
+
+                _lastCycle = _lastCycle,
+            };
+        }
+
+        public override void LoadState(InputDeviceState state)
+        {
+            if (state is not StandardControllerState)
+                return;
+
+            var controllerState = state as StandardControllerState;
+
+            _strobe = controllerState._strobe;
+            _shiftRegister = controllerState._shiftRegister;
+
+            _lastCycle = controllerState._lastCycle;
         }
     }
 }

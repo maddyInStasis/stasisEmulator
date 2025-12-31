@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -70,6 +71,33 @@ namespace stasisEmulator.NesCore.ApuComponents
                 return true;
 
             return false;
+        }
+
+        public SweepState SaveState()
+        {
+            return new()
+            {
+                DividerPeriod = DividerPeriod,
+                Divider = Divider,
+
+                Enabled = Enabled,
+                Reload = Reload,
+                Negate = Negate,
+
+                ShiftCount = ShiftCount,
+            };
+        }
+
+        public void LoadState(SweepState state)
+        {
+            DividerPeriod = state.DividerPeriod;
+            Divider = state.Divider;
+
+            Enabled = state.Enabled;
+            Reload = state.Reload;
+            Negate = state.Negate;
+
+            ShiftCount = state.ShiftCount;
         }
     }
 }

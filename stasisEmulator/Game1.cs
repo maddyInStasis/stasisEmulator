@@ -18,7 +18,6 @@ namespace stasisEmulator
         private SpriteBatch _spriteBatch;
 
         private OpenFileDialog _currentRomDialog;
-        private OpenFileDialog _currentTasDialog;
 
         private UIWindow _mainWindow;
         private UIEmulatorDisplay _mainDisplay;
@@ -28,14 +27,35 @@ namespace stasisEmulator
         private UIMenuItem _debugDropdown;
 
         private UIMenuItem _openRomButton;
-        private UIMenuItem _openTasButton;
-
-        private UIMenuItem _tasRestart;
-        private UIMenuItem _tasStop;
 
         private UIMenuItem _showFrameTimeButton;
 
         private IEmulatorCore _emulatorCore;
+        private readonly SaveState[] _saveStates = new SaveState[10];
+        private int _saveSlot = 0;
+
+        private enum EmulatorControl
+        {
+            Pause,
+            Modifier,
+            Reset,
+
+            Save,
+            Load,
+            PrevSave,
+            NextSave,
+        }
+
+        private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(bindings: new(){
+            { EmulatorControl.Pause, new([Microsoft.Xna.Framework.Input.Keys.Escape]) },
+            { EmulatorControl.Modifier, new([Microsoft.Xna.Framework.Input.Keys.LeftControl]) },
+            { EmulatorControl.Reset, new([Microsoft.Xna.Framework.Input.Keys.R]) },
+
+            { EmulatorControl.Save, new([Microsoft.Xna.Framework.Input.Keys.C]) },
+            { EmulatorControl.Load, new([Microsoft.Xna.Framework.Input.Keys.V]) },
+            { EmulatorControl.PrevSave, new([Microsoft.Xna.Framework.Input.Keys.OemOpenBrackets]) },
+            { EmulatorControl.NextSave, new([Microsoft.Xna.Framework.Input.Keys.OemCloseBrackets]) },
+        }, null);
 
         public Game1()
         {
@@ -58,6 +78,14 @@ namespace stasisEmulator
             Window.AllowUserResizing = true;
 
             base.Initialize();
+        }
+
+        private void ClearSaveStates()
+        {
+            for (int i = 0; i < _saveStates.Length; i++)
+            {
+                _saveStates[i] = null;
+            }
         }
 
         private void TryLoadRom(string path)
@@ -84,6 +112,9 @@ namespace stasisEmulator
                     _emulatorCore?.Unload();
                     SetupCore(newCore);
                 }
+
+                //save states from other roms are not relevant
+                ClearSaveStates();
             }
             catch (Exception e)
             {
@@ -106,18 +137,6 @@ namespace stasisEmulator
                 var item = CreateDropDownItem(header);
                 item.Click += (sender, e) => { action.Invoke(); };
                 _debugDropdown.AddMenuItem(item);
-            }
-        }
-
-        private void TryLoadTas(string path)
-        {
-            try
-            {
-                _emulatorCore?.LoadTas(path);
-            }
-            catch (Exception e)
-            {
-                _messageHandler.AddMessage($"Error loading TAS: {e.Message}");
             }
         }
 
@@ -201,54 +220,16 @@ namespace stasisEmulator
                 t.Start();
             };
 
-            _openTasButton = CreateDropDownItem("Open");
-            _openTasButton.Click += (sender, e) =>
-            {
-                if (_currentTasDialog != null)
-                    return;
-
-                var window = NativeWindow.FromHandle(Window.Handle);
-
-                string path = "";
-                var t = new Thread(() =>
-                {
-                    _currentTasDialog = new()
-                    {
-                        Title = "Open Tas File",
-                        Filter = "NES TAS files (*.fm2)|*.fm2|All files (*.*)|*.*"
-                    };
-
-                    var result = _currentTasDialog.ShowDialog(window);
-                    path = _currentTasDialog.FileName;
-                    _currentTasDialog = null;
-
-                    if (result == DialogResult.Cancel)
-                        return;
-
-                    if (path == "")
-                        return;
-
-                    TryLoadTas(path);
-                });
-
-                t.SetApartmentState(ApartmentState.STA);
-                t.Start();
-            };
-
-            _tasRestart = CreateDropDownItem("Restart");
-            _tasRestart.Click += (sender, e) => { _emulatorCore.RestartTas(); };
-
-            _tasStop = CreateDropDownItem("Stop");
-            _tasStop.Click += (sender, e) => { _emulatorCore.StopTas(); };
-
             _showFrameTimeButton = CreateDropDownItem("Show Frame Time");
             _showFrameTimeButton.Click += (sender, e) => _mainDisplay.OutputFrameTime = !_mainDisplay.OutputFrameTime;
-            
+
 
             _messageHandler = new UIMessageHandler()
             {
                 Width = UISize.Grow(),
-                Height = UISize.Grow()
+                Height = UISize.Grow(),
+                MessageBackgroundColor = new Color(25, 25, 40),
+                MessageTextColor = Color.White
             };
 
             static UIMenuItem createTopItem(string header, List<UIMenuItem> children)
@@ -271,7 +252,6 @@ namespace stasisEmulator
             _mainWindow = new UIWindow(Window, GraphicsDevice, [
                 new UIRectangle([
                     createTopItem("File", [_openRomButton]),
-                    createTopItem("Tas", [_openTasButton, _tasRestart, _tasStop]),
                     _debugDropdown,
                     createTopItem("View", [_showFrameTimeButton]),
                 ])
@@ -310,7 +290,59 @@ namespace stasisEmulator
             InputManager.Update();
             UIWindow.UpdateWindows(gameTime);
             UIMenuItem.StaticUpdate(gameTime);
-            _emulatorCore?.RunFrame();
+
+            _emulatorControls.UpdateInputStates();
+
+            if (_emulatorCore != null)
+            {
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.Pause))
+                {
+                    _emulatorCore.TogglePause();
+                }
+
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.PrevSave))
+                {
+                    _saveSlot--;
+                    if (_saveSlot < 0)
+                        _saveSlot = _saveStates.Length - 1;
+
+                    _messageHandler.AddMessage($"Switched to slot {_saveSlot}");
+                }
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.NextSave))
+                {
+                    _saveSlot++;
+                    if (_saveSlot > _saveStates.Length - 1)
+                        _saveSlot = 0;
+
+                    _messageHandler.AddMessage($"Switched to slot {_saveSlot}");
+                }
+
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.Save))
+                {
+                    _saveStates[_saveSlot] = _emulatorCore.SaveState();
+                    _messageHandler.AddMessage($"Saved to slot {_saveSlot}");
+                }
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.Load))
+                {
+                    var state = _saveStates[_saveSlot];
+                    string message = $"No state to load in slot {_saveSlot}";
+
+                    if (state != null)
+                    {
+                        _emulatorCore.LoadState(state);
+                        message = $"Loaded from slot {_saveSlot}";
+                    }
+
+                    _messageHandler.AddMessage(message);
+                }
+
+                if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
+                {
+                    _emulatorCore.Reset();
+                }
+
+                _emulatorCore.RunFrame();
+            }
 
             base.Update(gameTime);
         }

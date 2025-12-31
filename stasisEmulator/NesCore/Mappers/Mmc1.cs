@@ -1,4 +1,6 @@
-﻿namespace stasisEmulator.NesCore.Mappers
+﻿using stasisEmulator.NesCore.SaveStates.MapperStates;
+
+namespace stasisEmulator.NesCore.Mappers
 {
     public class Mmc1 : Mapper
     {
@@ -207,6 +209,42 @@
         private void ResetShiftRegister()
         {
             _shiftRegister = InitialShift;
+        }
+
+        protected override MapperState MapperSaveState()
+        {
+            return new Mmc1State()
+            {
+                _shiftRegister = _shiftRegister,
+
+                _prgRamEnabled = _prgRamEnabled,
+
+                _prgRomBankMode = _prgRomBankMode,
+                _chrRom4KiBMode = _chrRom4KiBMode,
+
+                _prgBank = _prgBank,
+                _chrBank0 = _chrBank0,
+                _chrBank1 = _chrBank1,
+            };
+        }
+
+        protected override void MapperLoadState(MapperState state)
+        {
+            if (state is not Mmc1State)
+                return;
+
+            var mmc1State = state as Mmc1State;
+
+            _shiftRegister = mmc1State._shiftRegister;
+
+            _prgRamEnabled = mmc1State._prgRamEnabled;
+
+            _prgRomBankMode = mmc1State._prgRomBankMode;
+            _chrRom4KiBMode = mmc1State._chrRom4KiBMode;
+
+            _prgBank = mmc1State._prgBank;
+            _chrBank0 = mmc1State._chrBank0;
+            _chrBank1 = mmc1State._chrBank1;
         }
     }
 }

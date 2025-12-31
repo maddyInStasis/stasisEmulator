@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework.Audio;
 using stasisEmulator.NesCore.ApuComponents;
+using stasisEmulator.NesCore.SaveStates;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -558,6 +559,107 @@ namespace stasisEmulator.NesCore
                     outputBuffer[i * 2 + 1] = (byte)(shortSample >> 8);
                 }
             }
+        }
+
+        public ApuState SaveState()
+        {
+            return new ApuState()
+            {
+                Pulse1EnvelopeState = Pulse1Envelope.SaveState(),
+                Pulse1SweepState = Pulse1Sweep.SaveState(),
+                Pulse1SequencerState = Pulse1Sequencer.SaveState(),
+                Pulse1LengthCounterState = Pulse1LengthCounter.SaveState(),
+
+                Pulse2EnvelopeState = Pulse2Envelope.SaveState(),
+                Pulse2SweepState = Pulse2Sweep.SaveState(),
+                Pulse2SequencerState = Pulse2Sequencer.SaveState(),
+                Pulse2LengthCounterState = Pulse2LengthCounter.SaveState(),
+
+                TriangleSequencerState = TriangleSequencer.SaveState(),
+                TriangleLinearCounterState = TriangleLinearCounter.SaveState(),
+                TriangleLengthCounterState = TriangleLengthCounter.SaveState(),
+
+                NoiseEnvelopeState = NoiseEnvelope.SaveState(),
+                NoiseShiftRegisterState = NoiseShiftRegister.SaveState(),
+                NoiseLengthCounterState = NoiseLengthCounter.SaveState(),
+
+                DmcEnable = DmcEnable,
+                DmcIrqEnabled = DmcIrqEnabled,
+                DmcLoop = DmcLoop,
+                DmcPeriod = DmcPeriod,
+                DmcTimer = DmcTimer,
+                DmcOutputLevel = DmcOutputLevel,
+                DmcSilence = DmcSilence,
+                DmcSampleBuffer = DmcSampleBuffer,
+                SampleBufferLoaded = SampleBufferLoaded,
+                DmcShiftRegister = DmcShiftRegister,
+                DmcSampleBitsRemaining = DmcSampleBitsRemaining,
+                DmcSampleAddress = DmcSampleAddress,
+                DmcCurrentAddress = DmcCurrentAddress,
+                DmcSampleLength = DmcSampleLength,
+                DmcBytesRemaining = DmcBytesRemaining,
+
+                PutCycle = PutCycle,
+
+                FrameCounter = FrameCounter,
+                FrameCounter5Step = FrameCounter5Step,
+                InterruptInhibit = InterruptInhibit,
+                _frameCounterResetTimer = _frameCounterResetTimer,
+
+                _frameInterrupt = _frameInterrupt,
+                _dmcInterruptFlag = _dmcInterruptFlag,
+
+                FrameInterruptSetThisCycle = FrameInterruptSetThisCycle,
+            };
+        }
+
+        public void LoadState(ApuState state)
+        {
+            Pulse1Envelope.LoadState(state.Pulse1EnvelopeState);
+            Pulse1Sweep.LoadState(state.Pulse1SweepState);
+            Pulse1Sequencer.LoadState(state.Pulse1SequencerState);
+            Pulse1LengthCounter.LoadState(state.Pulse1LengthCounterState);
+
+            Pulse2Envelope.LoadState(state.Pulse2EnvelopeState);
+            Pulse2Sweep.LoadState(state.Pulse2SweepState);
+            Pulse2Sequencer.LoadState(state.Pulse2SequencerState);
+            Pulse2LengthCounter.LoadState(state.Pulse2LengthCounterState);
+
+            TriangleSequencer.LoadState(state.TriangleSequencerState);
+            TriangleLinearCounter.LoadState(state.TriangleLinearCounterState);
+            TriangleLengthCounter.LoadState(state.TriangleLengthCounterState);
+
+            NoiseEnvelope.LoadState(state.NoiseEnvelopeState);
+            NoiseShiftRegister.LoadState(state.NoiseShiftRegisterState);
+            NoiseLengthCounter.LoadState(state.NoiseLengthCounterState);
+
+            DmcEnable = state.DmcEnable;
+            DmcIrqEnabled = state.DmcIrqEnabled;
+            DmcLoop = state.DmcLoop;
+            DmcPeriod = state.DmcPeriod;
+            DmcTimer = state.DmcTimer;
+            DmcOutputLevel = state.DmcOutputLevel;
+            DmcSilence = state.DmcSilence;
+            DmcSampleBuffer = state.DmcSampleBuffer;
+            SampleBufferLoaded = state.SampleBufferLoaded;
+            DmcShiftRegister = state.DmcShiftRegister;
+            DmcSampleBitsRemaining = state.DmcSampleBitsRemaining;
+            DmcSampleAddress = state.DmcSampleAddress;
+            DmcCurrentAddress = state.DmcCurrentAddress;
+            DmcSampleLength = state.DmcSampleLength;
+            DmcBytesRemaining = state.DmcBytesRemaining;
+
+            PutCycle = state.PutCycle;
+
+            FrameCounter = state.FrameCounter;
+            FrameCounter5Step = state.FrameCounter5Step;
+            InterruptInhibit = state.InterruptInhibit;
+            _frameCounterResetTimer = state._frameCounterResetTimer;
+
+            _frameInterrupt = state._frameInterrupt;
+            _dmcInterruptFlag = state._dmcInterruptFlag;
+
+            FrameInterruptSetThisCycle = state.FrameInterruptSetThisCycle;
         }
     }
 }

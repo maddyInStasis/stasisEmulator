@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.MapperStates;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -160,6 +161,59 @@ namespace stasisEmulator.NesCore.Mappers
                 IrqFlag = _irqCounter == 0 && _irqEnabled;
             }
             _a12Set = newA12;
+        }
+
+        protected override MapperState MapperSaveState()
+        {
+            byte[] banks = new byte[_banks.Length];
+            Array.Copy(_banks, banks, _banks.Length);
+
+            return new Mmc3State()
+            {
+                _prgBankMode = _prgBankMode,
+                _chrBanksInverted = _chrBanksInverted,
+
+                _banks = banks,
+
+                _prgRamEnabled = _prgRamEnabled,
+                _prgRamWriteProtect = _prgRamWriteProtect,
+
+                _nextBankWrite = _nextBankWrite,
+
+                _a12Set = _a12Set,
+                _irqReload = _irqReload,
+                _irqCounter = _irqCounter,
+                _irqReloadRequest = _irqReloadRequest,
+                _irqEnabled = _irqEnabled,
+
+                _irqFlag = _irqFlag,
+            };
+        }
+
+        protected override void MapperLoadState(MapperState state)
+        {
+            if (state is not Mmc3State)
+                return;
+
+            var mmc3State = state as Mmc3State;
+
+            _prgBankMode = mmc3State._prgBankMode;
+            _chrBanksInverted = mmc3State._chrBanksInverted;
+
+            Array.Copy(mmc3State._banks, _banks, _banks.Length);
+
+            _prgRamEnabled = mmc3State._prgRamEnabled;
+            _prgRamWriteProtect = mmc3State._prgRamWriteProtect;
+
+            _nextBankWrite = mmc3State._nextBankWrite;
+
+            _a12Set = mmc3State._a12Set;
+            _irqReload = mmc3State._irqReload;
+            _irqCounter = mmc3State._irqCounter;
+            _irqReloadRequest = mmc3State._irqReloadRequest;
+            _irqEnabled = mmc3State._irqEnabled;
+
+            _irqFlag = mmc3State._irqFlag;
         }
     }
 }

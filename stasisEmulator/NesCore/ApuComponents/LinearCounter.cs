@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -36,6 +37,27 @@ namespace stasisEmulator.NesCore.ApuComponents
         public bool GateOutput()
         {
             return Counter > 0;
+        }
+
+        public LinearCounterState SaveState()
+        {
+            return new()
+            {
+                Counter = Counter,
+                CounterReloadValue = CounterReloadValue,
+
+                ControlFlag = ControlFlag,
+                CounterReloadFlag = CounterReloadFlag,
+            };
+        }
+
+        public void LoadState(LinearCounterState state)
+        {
+            Counter = state.Counter;
+            CounterReloadValue = state.CounterReloadValue;
+
+            ControlFlag = state.ControlFlag;
+            CounterReloadFlag = state.CounterReloadFlag;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -58,6 +59,35 @@ namespace stasisEmulator.NesCore.ApuComponents
                 return EnvelopeParameter;
             else
                 return DecayLevel;
+        }
+
+        public EnvelopeState SaveState()
+        {
+            return new()
+            {
+                Start = Start,
+
+                EnvelopeParameter = EnvelopeParameter,
+                Divider = Divider,
+
+                DecayLevel = DecayLevel,
+
+                Loop = Loop,
+                ConstantVolume = ConstantVolume,
+            };
+        }
+
+        public void LoadState(EnvelopeState state)
+        {
+            Start = state.Start;
+
+            EnvelopeParameter = state.EnvelopeParameter;
+            Divider = state.Divider;
+
+            DecayLevel = state.DecayLevel;
+
+            Loop = state.Loop;
+            ConstantVolume = state.ConstantVolume;
         }
     }
 }

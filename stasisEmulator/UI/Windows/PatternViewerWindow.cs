@@ -101,7 +101,7 @@ namespace stasisEmulator.UI.Windows
             {
                 var color = paletteColors[i];
                 int paletteIndex = i & 3;
-                color.BackgroundColor = _nes.Ppu.Palette[_nes.Ppu.PaletteRam[paletteIndex != 0 ? i : 0]];
+                color.BackgroundColor = _nes.Ppu.Palette[_nes.Ppu.PaletteRam[paletteIndex != 0 ? i : 0] & 0x3F];
             }
         }
     }

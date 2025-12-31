@@ -11,13 +11,11 @@ namespace stasisEmulator.NesCore.Mappers
         protected override ushort PrgPageSize => 0x8000;
         protected override ushort ChrPageSize => 0x2000;
 
-        private byte _bank = 0;
-
         public AxRom(Rom rom, Nes nes) : base(rom, nes)
         {
             AddRegisterRange(0x8000, 0xFFFF, true);
 
-            MapPrg();
+            MapPrg(0);
             SelectChrPage(0, 0);
 
             MirrorType = NametableMirrorType.OnlyScreenA;
@@ -25,14 +23,13 @@ namespace stasisEmulator.NesCore.Mappers
 
         protected override void WriteRegisterCpu(ushort address, byte value)
         {
-            _bank = (byte)(value & 7);
             MirrorType = (value & 0x10) == 0 ? NametableMirrorType.OnlyScreenA : NametableMirrorType.OnlyScreenB;
-            MapPrg();
+            MapPrg((byte)(value & 7));
         }
 
-        private void MapPrg()
+        private void MapPrg(byte bank)
         {
-            SelectPrgPage(0, _bank);
+            SelectPrgPage(0, bank);
         }
     }
 }

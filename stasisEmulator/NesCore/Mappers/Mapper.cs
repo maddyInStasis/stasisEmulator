@@ -1,10 +1,11 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.MapperStates;
+using System;
 
 namespace stasisEmulator.NesCore.Mappers
 {
     public abstract class Mapper
     {
-        protected enum PrgMemoryType
+        public enum PrgMemoryType
         {
             None = 0,
             PrgRom,
@@ -13,7 +14,7 @@ namespace stasisEmulator.NesCore.Mappers
             Mapper
         }
 
-        protected enum ChrMemoryType
+        public enum ChrMemoryType
         {
             Default = 0,
             ChrRom,
@@ -22,7 +23,7 @@ namespace stasisEmulator.NesCore.Mappers
             Mapper
         }
 
-        protected enum MemoryAccessType
+        public enum MemoryAccessType
         {
             Default = -1,
             None = 0,
@@ -31,7 +32,7 @@ namespace stasisEmulator.NesCore.Mappers
             ReadWrite = 3
         }
 
-        protected enum NametableMirrorType
+        public enum NametableMirrorType
         {
             Horizontal,
             Vertical,
@@ -98,6 +99,98 @@ namespace stasisEmulator.NesCore.Mappers
 
             MirrorType = rom.VerticalMirror ? NametableMirrorType.Vertical : NametableMirrorType.Horizontal;
             _nes = nes;
+        }
+
+        public MapperState SaveState()
+        {
+            byte[] wram = new byte[WorkRam.Length];
+            byte[] saveRam = new byte[SaveRam.Length];
+            byte[] chrRam = new byte[ChrRam.Length];
+            byte[] vram = new byte[Vram.Length];
+
+            bool[] isReadRegister = new bool[_isReadRegister.Length];
+            bool[] isWriteRegister = new bool[_isWriteRegister.Length];
+
+            int[] prgSourceOffsets = new int[0x100];
+            int[] chrSourceOffsets = new int[0x100];
+
+            PrgMemoryType[] prgMemoryTypes = new PrgMemoryType[0x100];
+            ChrMemoryType[] chrMemoryTypes = new ChrMemoryType[0x100];
+
+            MemoryAccessType[] prgAccessTypes = new MemoryAccessType[0x100];
+            MemoryAccessType[] chrAccessTypes = new MemoryAccessType[0x100];
+
+            Array.Copy(WorkRam, wram, WorkRam.Length);
+            Array.Copy(SaveRam, saveRam, SaveRam.Length);
+            Array.Copy(ChrRam, chrRam, ChrRam.Length);
+            Array.Copy(Vram, vram, Vram.Length);
+
+            Array.Copy(_isReadRegister, isReadRegister, _isReadRegister.Length);
+            Array.Copy(_isWriteRegister, isWriteRegister, _isWriteRegister.Length);
+
+            Array.Copy(_prgSourceOffsets, prgSourceOffsets, _prgSourceOffsets.Length);
+            Array.Copy(_chrSourceOffsets, chrSourceOffsets, _chrSourceOffsets.Length);
+
+            Array.Copy(_prgMemoryTypes, prgMemoryTypes, _prgMemoryTypes.Length);
+            Array.Copy(_chrMemoryTypes, chrMemoryTypes, _chrMemoryTypes.Length);
+
+            Array.Copy(_prgAccessTypes, prgAccessTypes, _prgAccessTypes.Length);
+            Array.Copy(_chrAccessTypes, chrAccessTypes, _chrAccessTypes.Length);
+
+            MapperState state = MapperSaveState();
+
+            state.WorkRam = wram;
+            state.SaveRam = saveRam;
+            state.ChrRam = chrRam;
+            state.Vram = vram;
+
+            state._mirrorType = _mirrorType;
+
+            state._isReadRegister = isReadRegister;
+            state._isWriteRegister = isWriteRegister;
+
+            state._prgSourceOffsets = prgSourceOffsets;
+            state._chrSourceOffsets = chrSourceOffsets;
+
+            state._prgMemoryTypes = prgMemoryTypes;
+            state._chrMemoryTypes = chrMemoryTypes;
+
+            state._prgAccessTypes = prgAccessTypes;
+            state._chrAccessTypes = chrAccessTypes;
+
+            return state;
+        }
+
+        protected virtual MapperState MapperSaveState()
+        {
+            return new();
+        }
+
+        public void LoadState(MapperState state)
+        {
+            Array.Copy(state.WorkRam, WorkRam, WorkRam.Length);
+            Array.Copy(state.SaveRam, SaveRam, SaveRam.Length);
+            Array.Copy(state.ChrRam, ChrRam, ChrRam.Length);
+            Array.Copy(state.Vram, Vram, Vram.Length);
+
+            _mirrorType = state._mirrorType;
+
+            Array.Copy(state._isReadRegister, _isReadRegister, _isReadRegister.Length);
+            Array.Copy(state._isWriteRegister, _isWriteRegister, _isWriteRegister.Length);
+
+            Array.Copy(state._prgSourceOffsets, _prgSourceOffsets, _prgSourceOffsets.Length);
+            Array.Copy(state._chrSourceOffsets, _chrSourceOffsets, _chrSourceOffsets.Length);
+
+            Array.Copy(state._prgMemoryTypes, _prgMemoryTypes, _prgMemoryTypes.Length);
+            Array.Copy(state._chrMemoryTypes, _chrMemoryTypes, _chrMemoryTypes.Length);
+
+            Array.Copy(state._prgAccessTypes, _prgAccessTypes, _prgAccessTypes.Length);
+            Array.Copy(state._chrAccessTypes, _chrAccessTypes, _chrAccessTypes.Length);
+        }
+
+        protected virtual void MapperLoadState(MapperState state)
+        {
+
         }
 
         //somehow this is faster than just calculating the index on a per-mapper basis???

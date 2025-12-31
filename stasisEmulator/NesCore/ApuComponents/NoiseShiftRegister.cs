@@ -1,4 +1,5 @@
-﻿using System;
+﻿using stasisEmulator.NesCore.SaveStates.ApuComponentStates;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -53,6 +54,29 @@ namespace stasisEmulator.NesCore.ApuComponents
         public bool GateOutput()
         {
             return (ShiftRegister & 1) != 0;
+        }
+
+        public NoiseShiftRegisterState SaveState()
+        {
+            return new()
+            {
+                Mode = Mode,
+
+                Period = Period,
+                Timer = Timer,
+
+                ShiftRegister = ShiftRegister,
+            };
+        }
+
+        public void LoadState(NoiseShiftRegisterState state)
+        {
+            Mode = state.Mode;
+
+            Period = state.Period;
+            Timer = state.Timer;
+
+            ShiftRegister = state.ShiftRegister;
         }
     }
 }

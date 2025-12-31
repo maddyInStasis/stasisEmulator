@@ -17,7 +17,6 @@ namespace stasisEmulator.UI.Controls
 
         public FontSystem Font { get; set; }
 
-        private float CorrectedFontSize { get => FontSize * 1.75f; }
         public float FontSize { get; set; } = 12;
 
         public Color MessageBackgroundColor { get; set; } = Color.White;
@@ -48,6 +47,7 @@ namespace stasisEmulator.UI.Controls
                 new UITextLabel()
                 {
                     Text = message,
+                    TextColor = MessageTextColor
                 }
             ])
             {
