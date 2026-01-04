@@ -12,6 +12,8 @@ This emulator is a personal project of mine. It currently only supports NES ROMs
 - Emulator:
   - Pause - Esc
   - Reset - Ctrl + R
+  - Increase Speed - Plus
+  - Decrease Speed - Minus
 - Save States:
   - C - Save
   - V - Load
