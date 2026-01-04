@@ -88,16 +88,11 @@ namespace stasisEmulator.NesCore
 
         private readonly Nes _nes;
 
+        //TODO: should probably be stored in a preferences class/file
         public float OutputVolume = 0.5f;
 
         private const int PlaybackSampleRate = 44100;
-        private readonly DynamicSoundEffectInstance _dynamicSoundEffectInstance = new(PlaybackSampleRate, AudioChannels.Mono);
-
-        private const int BufferSize = PlaybackSampleRate / 60;
-        private readonly byte[] _outputBuffer = new byte[BufferSize * 2];
-        private readonly short[] _workingBuffer = new short[BufferSize];
-        private readonly short[] _apuOutput = new short[341 * 262 / 6];
-        private int _apuSampleCount = 0;
+        private readonly AudioOutputManager _audioOutput = new(PlaybackSampleRate, AudioChannels.Mono, 60, 341 * 262 / 6);
 
         public bool IsRunning = true;
 
@@ -108,18 +103,6 @@ namespace stasisEmulator.NesCore
             TriangleSequencer = new(TriangleLengthCounter, TriangleLinearCounter);
 
             _nes = nes;
-            Thread t = new(() =>
-            {
-                while (IsRunning)
-                {
-                    Thread.Sleep(1);
-                    if (_dynamicSoundEffectInstance.PendingBufferCount < 3)
-                        SubmitBuffer();
-                }
-            });
-
-            t.Start();
-            _dynamicSoundEffectInstance.Play();
         }
 
         public void Power()
@@ -385,7 +368,7 @@ namespace stasisEmulator.NesCore
             }
 
             DoFrameCounter();
-            OutputSample(GetMixerOutput());
+            _audioOutput.SubmitSample(GetMixerOutput());
         }
 
         public void CpuClock()
@@ -495,70 +478,21 @@ namespace stasisEmulator.NesCore
             float noiseOut = noise / 12241f;
             float dmcOut = dmc / 22638f;
             float tndOut = triangleOut + noiseOut + dmcOut > 0 ? 159.79f / ((1f / (triangleOut + noiseOut + dmcOut)) + 100) : 0;
+
             float output = pulseOut + tndOut;
+
             output *= OutputVolume;
             return (short)Math.Clamp(short.MaxValue * output, 0, short.MaxValue);
         }
 
-        private void OutputSample(short sample)
-        {
-            if (_apuSampleCount >= _apuOutput.Length)
-                return;
-
-            _apuOutput[_apuSampleCount] = sample;
-            _apuSampleCount++;
-        }
-
         public void ApuPreFrame()
         {
-            _apuSampleCount = 0;
+
         }
 
         public void ApuPostFrame()
         {
-            float apuSamplesPerOutputSample = _apuSampleCount / (float)_workingBuffer.Length;
-            float apuSamplePosition = 0;
-
-            for (int i = 0; i < _workingBuffer.Length; i++)
-            {
-                int apuSampleIndex = (int)apuSamplePosition;
-                apuSampleIndex = Math.Clamp(apuSampleIndex, 0, _apuOutput.Length - 1);
-
-                _workingBuffer[i] = _apuOutput[apuSampleIndex];
-                apuSamplePosition += apuSamplesPerOutputSample;
-                apuSamplePosition = Math.Min(apuSamplePosition, _apuSampleCount - 1);
-            }
-        }
-
-        private void SubmitBuffer()
-        {
-            if (_nes.Paused)
-                return;
-
-            ConvertBuffer(_workingBuffer, _outputBuffer);
-            _dynamicSoundEffectInstance.SubmitBuffer(_outputBuffer);
-        }
-
-        private static void ConvertBuffer(short[] shortBuffer, byte[] outputBuffer)
-        {
-            if (outputBuffer.Length != shortBuffer.Length * 2)
-                throw new Exception("Incorrect buffer size!");
-
-            for (int i = 0; i < shortBuffer.Length; i++)
-            {
-                short shortSample = shortBuffer[i];
-
-                if (!BitConverter.IsLittleEndian)
-                {
-                    outputBuffer[i * 2] = (byte)(shortSample >> 8);
-                    outputBuffer[i * 2 + 1] = (byte)shortSample;
-                }
-                else
-                {
-                    outputBuffer[i * 2] = (byte)shortSample;
-                    outputBuffer[i * 2 + 1] = (byte)(shortSample >> 8);
-                }
-            }
+            _audioOutput.SubmitBuffer();
         }
 
         public ApuState SaveState()
