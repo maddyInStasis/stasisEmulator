@@ -22,6 +22,8 @@ namespace stasisEmulator
         double TotalFrameTime { get; }
         ulong FrameCount { get; }
 
+        AudioOutputManager AudioOutput { get; }
+
         void LoadRom(string path);
 
         void RunFrame();

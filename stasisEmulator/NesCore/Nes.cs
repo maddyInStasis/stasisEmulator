@@ -42,6 +42,8 @@ namespace stasisEmulator.NesCore
         public readonly Ppu Ppu;
         public readonly Apu Apu;
 
+        public AudioOutputManager AudioOutput { get => Apu.AudioOutput; }
+
         public int ViewportWidth { get => 256; }
         public int ViewportHeight { get => 240; }
         public Color[] OutputBuffer { get => Ppu.OutputBuffer; }

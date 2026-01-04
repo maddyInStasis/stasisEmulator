@@ -34,6 +34,24 @@ namespace stasisEmulator
         private readonly SaveState[] _saveStates = new SaveState[10];
         private int _saveSlot = 0;
 
+        private float _playbackSpeed = 1;
+        public float PlaybackSpeed 
+        { 
+            get => _playbackSpeed; 
+            set 
+            { 
+                _playbackSpeed = value;
+
+                if (_emulatorCore != null)
+                    _emulatorCore.AudioOutput.PlaybackSpeed = value;
+            } 
+        }
+
+        private List<float> _speeds = [1/64f, 1/32f, 1/16f, 1/8f, 1/4f, 1/2f, 0.75f, 1, 1.5f, 2f, 3f];
+        private int _speedIndex;
+
+        private float _framesToRun = 0;
+
         private enum EmulatorControl
         {
             Pause,
@@ -44,6 +62,9 @@ namespace stasisEmulator
             Load,
             PrevSave,
             NextSave,
+
+            SpeedUp,
+            SpeedDown,
         }
 
         private readonly InputBindingContext<EmulatorControl> _emulatorControls = new(bindings: new(){
@@ -55,6 +76,9 @@ namespace stasisEmulator
             { EmulatorControl.Load, new([Microsoft.Xna.Framework.Input.Keys.V]) },
             { EmulatorControl.PrevSave, new([Microsoft.Xna.Framework.Input.Keys.OemOpenBrackets]) },
             { EmulatorControl.NextSave, new([Microsoft.Xna.Framework.Input.Keys.OemCloseBrackets]) },
+
+            { EmulatorControl.SpeedUp, new([Microsoft.Xna.Framework.Input.Keys.OemPlus]) },
+            { EmulatorControl.SpeedDown, new([Microsoft.Xna.Framework.Input.Keys.OemMinus]) },
         }, null);
 
         public Game1()
@@ -76,6 +100,9 @@ namespace stasisEmulator
             InactiveSleepTime = new();
 
             Window.AllowUserResizing = true;
+
+            _speedIndex = _speeds.IndexOf(1);
+            PlaybackSpeed = _speeds[_speedIndex];
 
             base.Initialize();
         }
@@ -125,6 +152,7 @@ namespace stasisEmulator
         private void SetupCore(IEmulatorCore newCore)
         {
             _emulatorCore = newCore;
+            _emulatorCore.AudioOutput.PlaybackSpeed = PlaybackSpeed;
             _mainDisplay.EmulatorCore = newCore;
 
             _debugDropdown.ClearMenuItems();
@@ -336,12 +364,32 @@ namespace stasisEmulator
                     _messageHandler.AddMessage(message);
                 }
 
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.SpeedUp))
+                {
+                    _speedIndex = Math.Min(_speedIndex + 1, _speeds.Count - 1);
+                    PlaybackSpeed = _speeds[_speedIndex];
+                    _messageHandler.AddMessage($"Speed: {PlaybackSpeed * 100:n1}%");
+                }
+
+                if (_emulatorControls.WasBindJustPressed(EmulatorControl.SpeedDown))
+                {
+                    _speedIndex = Math.Max(_speedIndex - 1, 0);
+                    PlaybackSpeed = _speeds[_speedIndex];
+                    _messageHandler.AddMessage($"Speed: {PlaybackSpeed * 100:n1}%");
+                }
+
                 if (_emulatorControls.IsBindPressed(EmulatorControl.Modifier) && _emulatorControls.WasBindJustPressed(EmulatorControl.Reset))
                 {
                     _emulatorCore.Reset();
                 }
 
-                _emulatorCore.RunFrame();
+                _framesToRun += _playbackSpeed;
+                
+                while (_framesToRun >= 1)
+                {
+                    _emulatorCore.RunFrame();
+                    _framesToRun--;
+                }
             }
 
             base.Update(gameTime);

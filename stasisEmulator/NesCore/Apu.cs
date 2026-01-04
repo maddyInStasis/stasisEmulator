@@ -51,15 +51,15 @@ namespace stasisEmulator.NesCore
         public bool InterruptInhibit;
         private int _frameCounterResetTimer = -1;
 
-        private bool _frameInterrupt = false;
+        private bool _frameInterruptFlag = false;
         public bool FrameInterruptFlag
         {
-            get => _frameInterrupt;
+            get => _frameInterruptFlag;
             set
             {
-                if (_frameInterrupt == value)
+                if (_frameInterruptFlag == value)
                     return;
-                _frameInterrupt = value;
+                _frameInterruptFlag = value;
 
                 if (value)
                     _nes.Cpu.IrqLine++;
@@ -92,7 +92,7 @@ namespace stasisEmulator.NesCore
         public float OutputVolume = 0.5f;
 
         private const int PlaybackSampleRate = 44100;
-        private readonly AudioOutputManager _audioOutput = new(PlaybackSampleRate, AudioChannels.Mono, 60, 341 * 262 / 6);
+        public readonly AudioOutputManager AudioOutput = new(PlaybackSampleRate, AudioChannels.Mono, 60, 341 * 262 / 6);
 
         public bool IsRunning = true;
 
@@ -368,7 +368,7 @@ namespace stasisEmulator.NesCore
             }
 
             DoFrameCounter();
-            _audioOutput.SubmitSample(GetMixerOutput());
+            AudioOutput.SubmitSample(GetMixerOutput());
         }
 
         public void CpuClock()
@@ -492,7 +492,7 @@ namespace stasisEmulator.NesCore
 
         public void ApuPostFrame()
         {
-            _audioOutput.SubmitBuffer();
+            AudioOutput.SubmitBuffer();
         }
 
         public ApuState SaveState()
@@ -540,7 +540,7 @@ namespace stasisEmulator.NesCore
                 InterruptInhibit = InterruptInhibit,
                 _frameCounterResetTimer = _frameCounterResetTimer,
 
-                _frameInterrupt = _frameInterrupt,
+                _frameInterrupt = _frameInterruptFlag,
                 _dmcInterruptFlag = _dmcInterruptFlag,
 
                 FrameInterruptSetThisCycle = FrameInterruptSetThisCycle,
@@ -590,7 +590,7 @@ namespace stasisEmulator.NesCore
             InterruptInhibit = state.InterruptInhibit;
             _frameCounterResetTimer = state._frameCounterResetTimer;
 
-            _frameInterrupt = state._frameInterrupt;
+            _frameInterruptFlag = state._frameInterrupt;
             _dmcInterruptFlag = state._dmcInterruptFlag;
 
             FrameInterruptSetThisCycle = state.FrameInterruptSetThisCycle;

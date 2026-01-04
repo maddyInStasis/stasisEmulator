@@ -265,101 +265,6 @@ namespace stasisEmulator.NesCore
             DoNmi = false;
             DoIrq = false;
         }
-
-        public CpuState SaveState()
-        {
-            byte[] ram = new byte[Ram.Length];
-            Array.Copy(Ram, ram, Ram.Length);
-
-            CpuState state = new()
-            {
-                A = A, X = X, Y = Y,
-                PC = PC, S = S,
-                Flag_Carry = Flag_Carry, Flag_Zero = Flag_Zero, Flag_InterruptDisable = Flag_InterruptDisable, 
-                Flag_Decimal = Flag_Decimal, Flag_Overflow = Flag_Overflow, Flag_Negative = Flag_Negative,
-
-                NmiLine = NmiLine, NmiPinsSignal = NmiPinsSignal, DoNmi = DoNmi,
-                IrqLine = IrqLine, IrqLevel = IrqLevel, DoIrq = DoIrq,
-                _interruptToRun = _interruptToRun,
-
-                Ram = ram,
-
-                CycleCount = CycleCount, InstructionCount = InstructionCount,
-
-                _logPc = _logPc,
-                _logOperandA = _logOperandA, _logOperandB = _logOperandB, _logByteCodeLength = _logByteCodeLength,
-                _logA = _logA, _logX = _logX, _logY = _logY, _logS = _logS, _logP = _logP,
-                _logArgument = _logArgument, _logEffectiveAddress = _logEffectiveAddress,
-                _logCycleCount = _logCycleCount,
-                _ignoreCurrentLog = _ignoreCurrentLog,
-
-                _addressBus = _addressBus, _addressLatch = _addressLatch,
-                _dataBus = _dataBus, _dataLatch = _dataLatch,
-
-                _operationPhase = _operationPhase, _operationCycle = _operationCycle, _operationPhaseComplete = _operationPhaseComplete,
-
-                _opcode = _opcode,
-                _currentInstr = _currentInstr, _currentAddr = _currentAddr,
-
-                _halt = _halt, _break = _break,
-
-                _isReadCycle = _isReadCycle,
-
-                _oamDma = _oamDma, DmcDma = DmcDma,
-                _dmaTryHalt = _dmaTryHalt, _dmaTryAlign = _dmaTryAlign,
-                _dmcDmaDummyCycleComplete = _dmcDmaDummyCycleComplete,
-                _dmcDmaAddress = _dmcDmaAddress,
-                _oamDmaPage = _oamDmaPage, _oamDmaIndex = _oamDmaIndex,
-
-                _doReset = _doReset,
-            };
-
-            return state;
-        }
-
-        public void LoadState(CpuState state)
-        {
-            A = state.A; X = state.X; Y = state.Y;
-            PC = state.PC; S = state.S;
-            Flag_Carry = state.Flag_Carry; Flag_Zero = state.Flag_Zero; Flag_InterruptDisable = state.Flag_InterruptDisable;
-            Flag_Decimal = state.Flag_Decimal; Flag_Overflow = state.Flag_Overflow; Flag_Negative = state.Flag_Negative;
-
-            NmiLine = state.NmiLine; NmiPinsSignal = state.NmiPinsSignal; DoNmi = state.DoNmi;
-            IrqLine = state.IrqLine; IrqLevel = state.IrqLevel; DoIrq = state.DoIrq;
-            _interruptToRun = state._interruptToRun;
-
-            Array.Copy(state.Ram, Ram, Ram.Length);
-
-            CycleCount = state.CycleCount; InstructionCount = state.InstructionCount;
-
-            _logPc = state._logPc;
-            _logOperandA = state._logOperandA; _logOperandB = state._logOperandB; _logByteCodeLength = state._logByteCodeLength;
-            _logA = state._logA; _logX = state._logX; _logY = state._logY; _logS = state._logS; _logP = state._logP;
-            _logArgument = state._logArgument; _logEffectiveAddress = state._logEffectiveAddress;
-            _logCycleCount = state._logCycleCount;
-            _ignoreCurrentLog = state._ignoreCurrentLog;
-
-            _addressBus = state._addressBus; _addressLatch = state._addressLatch;
-            _dataBus = state._dataBus; _dataLatch = state._dataLatch;
-
-            _operationPhase = state._operationPhase; _operationCycle = state._operationCycle; _operationPhaseComplete = state._operationPhaseComplete;
-
-            _opcode = state._opcode;
-            _currentInstr = state._currentInstr; _currentAddr = state._currentAddr;
-
-            _halt = state._halt; _break = state._break;
-
-            _isReadCycle = state._isReadCycle;
-
-            _oamDma = state._oamDma; DmcDma = state.DmcDma;
-            _dmaTryHalt = state._dmaTryHalt; _dmaTryAlign = state._dmaTryAlign;
-            _dmcDmaDummyCycleComplete = state._dmcDmaDummyCycleComplete;
-            _dmcDmaAddress = state._dmcDmaAddress;
-            _oamDmaPage = state._oamDmaPage; _oamDmaIndex = state._oamDmaIndex;
-
-            _doReset = state._doReset;
-        }
-
         private byte Read(ushort address, bool modifyBus = true)
         {
             _addressBus = address;
@@ -1800,6 +1705,128 @@ namespace stasisEmulator.NesCore
 
             if (!DoIrq || canDisableIrq)
                 DoIrq = IrqLevel && !Flag_InterruptDisable;
+        }
+
+        public CpuState SaveState()
+        {
+            byte[] ram = new byte[Ram.Length];
+            Array.Copy(Ram, ram, Ram.Length);
+
+            CpuState state = new()
+            {
+                A = A,
+                X = X,
+                Y = Y,
+                PC = PC,
+                S = S,
+                Flag_Carry = Flag_Carry,
+                Flag_Zero = Flag_Zero,
+                Flag_InterruptDisable = Flag_InterruptDisable,
+                Flag_Decimal = Flag_Decimal,
+                Flag_Overflow = Flag_Overflow,
+                Flag_Negative = Flag_Negative,
+
+                NmiLine = NmiLine,
+                NmiPinsSignal = NmiPinsSignal,
+                DoNmi = DoNmi,
+                IrqLine = IrqLine,
+                IrqLevel = IrqLevel,
+                DoIrq = DoIrq,
+                _interruptToRun = _interruptToRun,
+
+                Ram = ram,
+
+                CycleCount = CycleCount,
+                InstructionCount = InstructionCount,
+
+                _logPc = _logPc,
+                _logOperandA = _logOperandA,
+                _logOperandB = _logOperandB,
+                _logByteCodeLength = _logByteCodeLength,
+                _logA = _logA,
+                _logX = _logX,
+                _logY = _logY,
+                _logS = _logS,
+                _logP = _logP,
+                _logArgument = _logArgument,
+                _logEffectiveAddress = _logEffectiveAddress,
+                _logCycleCount = _logCycleCount,
+                _ignoreCurrentLog = _ignoreCurrentLog,
+
+                _addressBus = _addressBus,
+                _addressLatch = _addressLatch,
+                _dataBus = _dataBus,
+                _dataLatch = _dataLatch,
+
+                _operationPhase = _operationPhase,
+                _operationCycle = _operationCycle,
+                _operationPhaseComplete = _operationPhaseComplete,
+
+                _opcode = _opcode,
+                _currentInstr = _currentInstr,
+                _currentAddr = _currentAddr,
+
+                _halt = _halt,
+                _break = _break,
+
+                _isReadCycle = _isReadCycle,
+
+                _oamDma = _oamDma,
+                DmcDma = DmcDma,
+                _dmaTryHalt = _dmaTryHalt,
+                _dmaTryAlign = _dmaTryAlign,
+                _dmcDmaDummyCycleComplete = _dmcDmaDummyCycleComplete,
+                _dmcDmaAddress = _dmcDmaAddress,
+                _oamDmaPage = _oamDmaPage,
+                _oamDmaIndex = _oamDmaIndex,
+
+                _doReset = _doReset,
+            };
+
+            return state;
+        }
+
+        public void LoadState(CpuState state)
+        {
+            A = state.A; X = state.X; Y = state.Y;
+            PC = state.PC; S = state.S;
+            Flag_Carry = state.Flag_Carry; Flag_Zero = state.Flag_Zero; Flag_InterruptDisable = state.Flag_InterruptDisable;
+            Flag_Decimal = state.Flag_Decimal; Flag_Overflow = state.Flag_Overflow; Flag_Negative = state.Flag_Negative;
+
+            NmiLine = state.NmiLine; NmiPinsSignal = state.NmiPinsSignal; DoNmi = state.DoNmi;
+            IrqLine = state.IrqLine; IrqLevel = state.IrqLevel; DoIrq = state.DoIrq;
+            _interruptToRun = state._interruptToRun;
+
+            Array.Copy(state.Ram, Ram, Ram.Length);
+
+            CycleCount = state.CycleCount; InstructionCount = state.InstructionCount;
+
+            _logPc = state._logPc;
+            _logOperandA = state._logOperandA; _logOperandB = state._logOperandB; _logByteCodeLength = state._logByteCodeLength;
+            _logA = state._logA; _logX = state._logX; _logY = state._logY; _logS = state._logS; _logP = state._logP;
+            _logArgument = state._logArgument; _logEffectiveAddress = state._logEffectiveAddress;
+            _logCycleCount = state._logCycleCount;
+            _ignoreCurrentLog = state._ignoreCurrentLog;
+
+            _addressBus = state._addressBus; _addressLatch = state._addressLatch;
+            _dataBus = state._dataBus; _dataLatch = state._dataLatch;
+
+            _operationPhase = state._operationPhase; _operationCycle = state._operationCycle; _operationPhaseComplete = state._operationPhaseComplete;
+
+            _opcode = state._opcode;
+            _currentInstr = state._currentInstr; _currentAddr = state._currentAddr;
+
+            _halt = state._halt; _break = state._break;
+
+            _isReadCycle = state._isReadCycle;
+
+            _oamDma = state._oamDma; DmcDma = state.DmcDma;
+            _dmaTryHalt = state._dmaTryHalt; _dmaTryAlign = state._dmaTryAlign;
+            _dmcDmaDummyCycleComplete = state._dmcDmaDummyCycleComplete;
+            _dmcDmaAddress = state._dmcDmaAddress;
+            _oamDmaPage = state._oamDmaPage; _oamDmaIndex = state._oamDmaIndex;
+
+            _doReset = state._doReset;
         }
     }
 }

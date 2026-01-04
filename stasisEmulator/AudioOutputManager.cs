@@ -6,13 +6,29 @@ namespace stasisEmulator
     public class AudioOutputManager
     {
         private float _playbackSpeed = 1;
-        public float PlaybackSpeed { get => _playbackSpeed; set => _playbackSpeed = value; }
+        public float PlaybackSpeed 
+        { 
+            get => _playbackSpeed;
+            set
+            {
+                _playbackSpeed = value;
+                CreateBuffers();
+            }
+        }
+
+        private const float MinPlaybackSpeed = 0.25f;
+        private const float MaxPlaybackSpeed = 4;
 
         private readonly DynamicSoundEffectInstance _soundEffectInstance;
 
-        private readonly byte[] _outputBuffer;
-        private readonly short[] _workingBuffer;
-        private readonly short[] _loadBuffer;
+        private readonly int _sampleRate;
+        private readonly AudioChannels _audioChannels;
+        private readonly int _bufferSubmitRate;
+        private readonly int _loadBufferSize;
+
+        private byte[] _outputBuffer;
+        private short[] _workingBuffer;
+        private short[] _loadBuffer;
         private int _loadBufferIndex = 0;
         private float _samplesToSubmit = 0;
 
@@ -21,9 +37,19 @@ namespace stasisEmulator
             _soundEffectInstance = new(sampleRate, audioChannels);
             _soundEffectInstance.Play();
 
-            int bufferLength = (int)Math.Ceiling((float)sampleRate / bufferSubmitRate) * (audioChannels == AudioChannels.Stereo ? 2 : 1);
+            _sampleRate = sampleRate;
+            _audioChannels = audioChannels;
+            _bufferSubmitRate = bufferSubmitRate;
+            _loadBufferSize = loadBufferSize;
 
-            _loadBuffer = new short[loadBufferSize];
+            CreateBuffers();
+        }
+
+        private void CreateBuffers()
+        {
+            int bufferLength = (int)Math.Ceiling((float)_sampleRate / _bufferSubmitRate / Math.Min(_playbackSpeed, 1)) * (_audioChannels == AudioChannels.Stereo ? 2 : 1);
+
+            _loadBuffer = new short[_loadBufferSize];
             _workingBuffer = new short[bufferLength];
             _outputBuffer = new byte[bufferLength * 2];
         }
@@ -70,7 +96,7 @@ namespace stasisEmulator
 
         public void SubmitSample(short sample)
         {
-            _samplesToSubmit += 1 / _playbackSpeed;
+            _samplesToSubmit += 1 / Math.Min(_playbackSpeed, 1);
             while (_samplesToSubmit > 0)
             {
                 if (_loadBufferIndex >= _loadBuffer.Length)
@@ -88,7 +114,7 @@ namespace stasisEmulator
         {
             Resample(_loadBuffer, 0, _loadBufferIndex, _workingBuffer, 0, _workingBuffer.Length);
             ToByteBuffer(_workingBuffer, _outputBuffer);
-            if (_soundEffectInstance.PendingBufferCount < 3)
+            if (_soundEffectInstance.PendingBufferCount < 3 && _playbackSpeed >= MinPlaybackSpeed && _playbackSpeed <= MaxPlaybackSpeed)
                 _soundEffectInstance.SubmitBuffer(_outputBuffer);
             _loadBufferIndex = 0;
         }
